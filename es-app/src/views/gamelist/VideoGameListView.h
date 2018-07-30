@@ -35,6 +35,11 @@ private:
 	VideoComponent* mVideo;
 	ImageComponent mImage;
 
+	// Extra media images
+	ImageComponent mCart;
+    ImageComponent mBox;
+    ImageComponent mFan;
+
 	TextComponent mLblRating, mLblReleaseDate, mLblDeveloper, mLblPublisher, mLblGenre, mLblPlayers, mLblLastPlayed, mLblPlayCount;
 
 	RatingComponent mRating;

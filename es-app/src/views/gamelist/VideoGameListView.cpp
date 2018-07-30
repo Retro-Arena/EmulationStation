@@ -24,7 +24,12 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 
 	mRating(window), mReleaseDate(window), mDeveloper(window), mPublisher(window),
 	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window),
-	mName(window)
+	mName(window),
+
+	// Extra media items
+	mGame(window),
+    mBox(window),
+    mFan(window)
 {
 	const float padding = 0.01f;
 
@@ -64,6 +69,27 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mVideo->setSize(mSize.x() * (0.5f - 2*padding), mSize.y() * 0.4f);
 	mVideo->setDefaultZIndex(30);
 	addChild(mVideo);
+
+	// Extra Game
+    mCart.setOrigin(0.5f, 0.5f);
+    mCart.setPosition(mSize.x() * 0.25f, mSize.y() * 0.10f);
+    mCart.setMaxSize(mSize.x() * (0.5f - 2*padding), mSize.y() * 0.18f);
+    mCart.setDefaultZIndex(35);
+    addChild(&mCart);
+
+    // Extra Box
+    mBox.setOrigin(0.5f, 0.5f);
+    mBox.setPosition(mSize.x() * 0.25f, mSize.y() * 0.10f);
+    mBox.setMaxSize(mSize.x() * (0.5f - 2*padding), mSize.y() * 0.18f);
+    mBox.setDefaultZIndex(35);
+    addChild(&mBox);
+
+    // Extra Fan
+    mFan.setOrigin(0.5f, 0.5f);
+    mFan.setPosition(mSize.x() * 0.25f, mSize.y() * 0.10f);
+    mFan.setMaxSize(mSize.x() * (0.5f - 2*padding), mSize.y() * 0.18f);
+    mFan.setDefaultZIndex(35);
+    addChild(&mFan);
 
 	// metadata labels + values
 	mLblRating.setText("Rating: ");
@@ -127,6 +153,11 @@ void VideoGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 	mImage.applyTheme(theme, getName(), "md_image", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 	mVideo->applyTheme(theme, getName(), "md_video", POSITION | ThemeFlags::SIZE | ThemeFlags::DELAY | Z_INDEX | ROTATION);
 	mName.applyTheme(theme, getName(), "md_name", ALL);
+
+	// Extra media
+	mCart.applyTheme(theme, getName(), "md_cart", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
+    mBox.applyTheme(theme, getName(), "md_box", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
+    mFan.applyTheme(theme, getName(), "md_fan", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 
 	initMDLabels();
 	std::vector<TextComponent*> labels = getMDLabels();
@@ -255,6 +286,11 @@ void VideoGameListView::updateInfoPanel()
 		mVideo->setImage(file->getThumbnailPath());
 		mMarquee.setImage(file->getMarqueePath());
 		mImage.setImage(file->getImagePath());
+		
+		// Extra media
+		mCart.setImage(file->getCartPath());
+        mBox.setImage(file->getBoxPath());
+        mFan.setImage(file->getFanPath());
 
 		mDescription.setText(file->metadata.get("desc"));
 		mDescContainer.reset();
@@ -282,6 +318,10 @@ void VideoGameListView::updateInfoPanel()
 	comps.push_back(&mDescription);
 	comps.push_back(&mImage);
 	comps.push_back(&mName);
+	// Extra media
+	comps.push_back(&mCart);
+    comps.push_back(&mBox);
+    comps.push_back(&mFan);
 	std::vector<TextComponent*> labels = getMDLabels();
 	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
 
@@ -334,6 +374,24 @@ void VideoGameListView::launch(FileData* game)
 	{
 		target = Vector3f(mVideo->getCenter().x(), mVideo->getCenter().y(), 0);
 	}
+	else if(mCart.hasImage() &&
+    (mCart.getPosition().x() < screenWidth && mCart.getPosition().x() > 2.0f &&
+    mCart.getPosition().y() < screenHeight && mCart.getPosition().y() > 2.0f))
+    {
+        target = Vector3f(mCart.getCenter().x(), mCart.getCenter().y(), 0);
+    }
+    else if(mBox.hasImage() &&
+    (mBox.getPosition().x() < screenWidth && mBox.getPosition().x() > 2.0f &&
+    mBox.getPosition().y() < screenHeight && mBox.getPosition().y() > 2.0f))
+    {
+        target = Vector3f(mBox.getCenter().x(), mBox.getCenter().y(), 0);
+    }
+    else if(mFan.hasImage() &&
+    (mFan.getPosition().x() < screenWidth && mFan.getPosition().x() > 2.0f &&
+    mFan.getPosition().y() < screenHeight && mFan.getPosition().y() > 2.0f))
+    {
+        target = Vector3f(mFan.getCenter().x(), mFan.getCenter().y(), 0);
+    }
 
 	ViewController::get()->launch(game, target);
 }

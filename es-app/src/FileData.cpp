@@ -169,6 +169,72 @@ const std::string FileData::getImagePath() const
 	return image;
 }
 
+const std::string FileData::getCartPath() const
+{
+	std::string cart = metadata.get("cart");
+
+	// no image, try to use local image
+	if(cart.empty())
+	{
+		const char* extList[2] = { ".png", ".jpg" };
+		for(int i = 0; i < 2; i++)
+		{
+			if(cart.empty())
+			{
+				std::string path = mEnvData->mStartPath + "/images/" + getDisplayName() + "-cart" + extList[i];
+				if(Utils::FileSystem::exists(path))
+					cart = path;
+			}
+		}
+	}
+
+	return cart;
+}
+
+const std::string FileData::getBoxPath() const
+{
+	std::string box = metadata.get("box");
+
+	// no image, try to use local image
+	if(box.empty())
+	{
+		const char* extList[2] = { ".png", ".jpg" };
+		for(int i = 0; i < 2; i++)
+		{
+			if(box.empty())
+			{
+				std::string path = mEnvData->mStartPath + "/images/" + getDisplayName() + "-box" + extList[i];
+				if(Utils::FileSystem::exists(path))
+					box = path;
+			}
+		}
+	}
+
+	return box;
+}
+
+const std::string FileData::getFanPath() const
+{
+	std::string fan = metadata.get("fan");
+
+	// no image, try to use local image
+	if(fan.empty())
+	{
+		const char* extList[2] = { ".png", ".jpg" };
+		for(int i = 0; i < 2; i++)
+		{
+			if(fan.empty())
+			{
+				std::string path = mEnvData->mStartPath + "/images/" + getDisplayName() + "-fan" + extList[i];
+				if(Utils::FileSystem::exists(path))
+					fan = path;
+			}
+		}
+	}
+
+	return fan;
+}
+
 std::vector<FileData*> FileData::getFilesRecursive(unsigned int typeMask, bool displayedOnly) const
 {
 	std::vector<FileData*> out;

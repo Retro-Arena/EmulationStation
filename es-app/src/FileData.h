@@ -50,6 +50,10 @@ public:
 	virtual const std::string getMarqueePath() const;
 	virtual const std::string getImagePath() const;
 
+	virtual const std::string getCartPath() const;
+	virtual const std::string getBoxPath() const;
+	virtual const std::string getFanPath() const;
+
 	const std::vector<FileData*>& getChildrenListToDisplay();
 	std::vector<FileData*> getFilesRecursive(unsigned int typeMask, bool displayedOnly = false) const;
 
