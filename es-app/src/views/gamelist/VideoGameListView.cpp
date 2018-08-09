@@ -27,7 +27,7 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mName(window),
 
 	// Extra media items
-	mGame(window),
+	mCart(window),
     mBox(window),
     mFan(window)
 {
