@@ -1,9 +1,11 @@
 #include "Settings.h"
 
+#include "utils/FileSystemUtil.h"
 #include "Log.h"
 #include "platform.h"
-#include <boost/filesystem/operations.hpp>
 #include <pugixml/src/pugixml.hpp>
+#include <algorithm>
+#include <vector>
 
 Settings* Settings::sInstance = NULL;
 
@@ -13,14 +15,24 @@ std::vector<const char*> settings_dont_save {
 	{ "Debug" },
 	{ "DebugGrid" },
 	{ "DebugText" },
+	{ "DebugImage" },
 	{ "ForceKid" },
 	{ "ForceKiosk" },
 	{ "IgnoreGamelist" },
 	{ "HideConsole" },
 	{ "ShowExit" },
 	{ "SplashScreen" },
+	{ "SplashScreenProgress" },
 	{ "VSync" },
-	{ "Windowed" }
+	{ "Windowed" },
+	{ "WindowWidth" },
+	{ "WindowHeight" },
+	{ "ScreenWidth" },
+	{ "ScreenHeight" },
+	{ "ScreenOffsetX" },
+	{ "ScreenOffsetY" },
+	{ "ScreenRotate" },
+	{ "ExePath" }
 };
 
 Settings::Settings()
@@ -49,6 +61,7 @@ void Settings::setDefaults()
 	mBoolMap["ShowExit"] = true;
 	mBoolMap["Windowed"] = false;
 	mBoolMap["SplashScreen"] = true;
+	mBoolMap["SplashScreenProgress"] = true;
 	mStringMap["StartupSystem"] = "";
 
 	mBoolMap["VSync"] = true;
@@ -65,6 +78,7 @@ void Settings::setDefaults()
 	mBoolMap["Debug"] = false;
 	mBoolMap["DebugGrid"] = false;
 	mBoolMap["DebugText"] = false;
+	mBoolMap["DebugImage"] = false;
 
 	mIntMap["ScreenSaverTime"] = 5*60*1000; // 5 minutes
 	mIntMap["ScraperResizeWidth"] = 400;
@@ -88,9 +102,9 @@ void Settings::setDefaults()
 
 	mIntMap["ScreenSaverSwapImageTimeout"] = 10000;
 	mBoolMap["SlideshowScreenSaverStretch"] = false;
-	mStringMap["SlideshowScreenSaverBackgroundAudioFile"] = getHomePath() + "/.emulationstation/slideshow/audio/slideshow_bg.wav";
+	mStringMap["SlideshowScreenSaverBackgroundAudioFile"] = Utils::FileSystem::getHomePath() + "/.emulationstation/slideshow/audio/slideshow_bg.wav";
 	mBoolMap["SlideshowScreenSaverCustomImageSource"] = false;
-	mStringMap["SlideshowScreenSaverImageDir"] = getHomePath() + "/.emulationstation/slideshow/image";
+	mStringMap["SlideshowScreenSaverImageDir"] = Utils::FileSystem::getHomePath() + "/.emulationstation/slideshow/image";
 	mStringMap["SlideshowScreenSaverImageFilter"] = ".png,.jpg";
 	mBoolMap["SlideshowScreenSaverRecurse"] = false;
 
@@ -115,6 +129,8 @@ void Settings::setDefaults()
 	mBoolMap["SortAllSystems"] = false;
 	mBoolMap["UseCustomCollectionsSystem"] = true;
 
+	mBoolMap["LocalArt"] = false;
+
 	// Audio out device for volume control
 	#ifdef _RPI_
 		mStringMap["AudioDevice"] = "PCM";
@@ -122,11 +138,22 @@ void Settings::setDefaults()
 		mStringMap["AudioDevice"] = "Master";
 	#endif
 
+	mStringMap["AudioCard"] = "default";
 	mStringMap["UIMode"] = "Full";
 	mStringMap["UIMode_passkey"] = "uuddlrlrba";
 	mBoolMap["ForceKiosk"] = false;
 	mBoolMap["ForceKid"] = false;
-	mBoolMap["hideQuitMenuOnKidUI"] = false;
+	mBoolMap["ForceDisableFilters"] = false;
+
+	mIntMap["WindowWidth"]   = 0;
+	mIntMap["WindowHeight"]  = 0;
+	mIntMap["ScreenWidth"]   = 0;
+	mIntMap["ScreenHeight"]  = 0;
+	mIntMap["ScreenOffsetX"] = 0;
+	mIntMap["ScreenOffsetY"] = 0;
+	mIntMap["ScreenRotate"]  = 0;
+
+	mStringMap["ExePath"] = "";
 }
 
 template <typename K, typename V>
@@ -147,7 +174,7 @@ void saveMap(pugi::xml_document& doc, std::map<K, V>& map, const char* type)
 void Settings::saveFile()
 {
 	LOG(LogDebug) << "Settings::saveFile() : Saving Settings to file.";
-	const std::string path = getHomePath() + "/.emulationstation/es_settings.cfg";
+	const std::string path = Utils::FileSystem::getHomePath() + "/.emulationstation/es_settings.cfg";
 
 	pugi::xml_document doc;
 
@@ -168,9 +195,9 @@ void Settings::saveFile()
 
 void Settings::loadFile()
 {
-	const std::string path = getHomePath() + "/.emulationstation/es_settings.cfg";
+	const std::string path = Utils::FileSystem::getHomePath() + "/.emulationstation/es_settings.cfg";
 
-	if(!boost::filesystem::exists(path))
+	if(!Utils::FileSystem::exists(path))
 		return;
 
 	pugi::xml_document doc;

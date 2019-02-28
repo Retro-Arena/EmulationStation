@@ -3,34 +3,36 @@
 
 #include "guis/GuiDetectDevice.h"
 #include "guis/GuiMsgBox.h"
+#include "utils/FileSystemUtil.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "EmulationStation.h"
 #include "InputManager.h"
 #include "Log.h"
+#include "MameNames.h"
 #include "platform.h"
 #include "PowerSaver.h"
 #include "ScraperCmdLine.h"
 #include "Settings.h"
 #include "SystemData.h"
 #include "SystemScreenSaver.h"
-#include <boost/filesystem/operations.hpp>
 #include <SDL_events.h>
 #include <SDL_main.h>
 #include <SDL_timer.h>
 #include <iostream>
+#include <time.h>
 #ifdef WIN32
 #include <Windows.h>
 #endif
 
 #include <FreeImage.h>
 
-namespace fs = boost::filesystem;
-
 bool scrape_cmdline = false;
 
-bool parseArgs(int argc, char* argv[], unsigned int* width, unsigned int* height)
+bool parseArgs(int argc, char* argv[])
 {
+	Settings::getInstance()->setString("ExePath", argv[0]);
+
 	for(int i = 1; i < argc; i++)
 	{
 		if(strcmp(argv[i], "--resolution") == 0)
@@ -41,9 +43,48 @@ bool parseArgs(int argc, char* argv[], unsigned int* width, unsigned int* height
 				return false;
 			}
 
-			*width = atoi(argv[i + 1]);
-			*height = atoi(argv[i + 2]);
+			int width = atoi(argv[i + 1]);
+			int height = atoi(argv[i + 2]);
 			i += 2; // skip the argument value
+			Settings::getInstance()->setInt("WindowWidth", width);
+			Settings::getInstance()->setInt("WindowHeight", height);
+		}else if(strcmp(argv[i], "--screensize") == 0)
+		{
+			if(i >= argc - 2)
+			{
+				std::cerr << "Invalid screensize supplied.";
+				return false;
+			}
+
+			int width = atoi(argv[i + 1]);
+			int height = atoi(argv[i + 2]);
+			i += 2; // skip the argument value
+			Settings::getInstance()->setInt("ScreenWidth", width);
+			Settings::getInstance()->setInt("ScreenHeight", height);
+		}else if(strcmp(argv[i], "--screenoffset") == 0)
+		{
+			if(i >= argc - 2)
+			{
+				std::cerr << "Invalid screenoffset supplied.";
+				return false;
+			}
+
+			int x = atoi(argv[i + 1]);
+			int y = atoi(argv[i + 2]);
+			i += 2; // skip the argument value
+			Settings::getInstance()->setInt("ScreenOffsetX", x);
+			Settings::getInstance()->setInt("ScreenOffsetY", y);
+		}else if (strcmp(argv[i], "--screenrotate") == 0)
+		{
+			if (i >= argc - 1)
+			{
+				std::cerr << "Invalid screenrotate supplied.";
+				return false;
+			}
+
+			int rotate = atoi(argv[i + 1]);
+			++i; // skip the argument value
+			Settings::getInstance()->setInt("ScreenRotate", rotate);
 		}else if(strcmp(argv[i], "--gamelist-only") == 0)
 		{
 			Settings::getInstance()->setBool("ParseGamelistOnly", true);
@@ -91,6 +132,10 @@ bool parseArgs(int argc, char* argv[], unsigned int* width, unsigned int* height
 		{
 			Settings::getInstance()->setBool("ForceKid", true);
 		}
+		else if (strcmp(argv[i], "--force-disable-filters") == 0)
+		{
+			Settings::getInstance()->setBool("ForceDisableFilters", true);
+		}
 		else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
 		{
 #ifdef WIN32
@@ -117,7 +162,9 @@ bool parseArgs(int argc, char* argv[], unsigned int* width, unsigned int* height
 				"--windowed			not fullscreen, should be used with --resolution\n"
 				"--vsync [1/on or 0/off]		turn vsync on or off (default is on)\n"
 				"--max-vram [size]		Max VRAM to use in Mb before swapping. 0 for unlimited\n"
+				"--force-kid		Force the UI mode to be Kid\n"
 				"--force-kiosk		Force the UI mode to be Kiosk\n"
+				"--force-disable-filters		Force the UI to ignore applied filters in gamelist\n"
 				"--help, -h			summon a sentient, angry tuba\n\n"
 				"More information available in README.md.\n";
 			return false; //exit after printing help
@@ -130,13 +177,13 @@ bool parseArgs(int argc, char* argv[], unsigned int* width, unsigned int* height
 bool verifyHomeFolderExists()
 {
 	//make sure the config directory exists
-	std::string home = getHomePath();
+	std::string home = Utils::FileSystem::getHomePath();
 	std::string configDir = home + "/.emulationstation";
-	if(!fs::exists(configDir))
+	if(!Utils::FileSystem::exists(configDir))
 	{
 		std::cout << "Creating config directory \"" << configDir << "\"\n";
-		fs::create_directory(configDir);
-		if(!fs::exists(configDir))
+		Utils::FileSystem::createDirectory(configDir);
+		if(!Utils::FileSystem::exists(configDir))
 		{
 			std::cerr << "Config directory could not be created!\n";
 			return false;
@@ -182,13 +229,9 @@ int main(int argc, char* argv[])
 {
 	srand((unsigned int)time(NULL));
 
-	unsigned int width = 0;
-	unsigned int height = 0;
-
 	std::locale::global(std::locale("C"));
-	boost::filesystem::path::imbue(std::locale());
 
-	if(!parseArgs(argc, argv, &width, &height))
+	if(!parseArgs(argc, argv))
 		return 0;
 
 	// only show the console on Windows if HideConsole is false
@@ -246,11 +289,15 @@ int main(int argc, char* argv[])
 	PowerSaver::init();
 	ViewController::init(&window);
 	CollectionSystemManager::init(&window);
+	MameNames::init();
 	window.pushGui(ViewController::get());
+
+	bool splashScreen = Settings::getInstance()->getBool("SplashScreen");
+	bool splashScreenProgress = Settings::getInstance()->getBool("SplashScreenProgress");
 
 	if(!scrape_cmdline)
 	{
-		if(!window.init(width, height))
+		if(!window.init())
 		{
 			LOG(LogError) << "Window failed to initialize!";
 			return 1;
@@ -259,8 +306,13 @@ int main(int argc, char* argv[])
 		std::string glExts = (const char*)glGetString(GL_EXTENSIONS);
 		LOG(LogInfo) << "Checking available OpenGL extensions...";
 		LOG(LogInfo) << " ARB_texture_non_power_of_two: " << (glExts.find("ARB_texture_non_power_of_two") != std::string::npos ? "ok" : "MISSING");
-		if(Settings::getInstance()->getBool("SplashScreen"))
-			window.renderLoadingScreen();
+		if(splashScreen)
+		{
+			std::string progressText = "Loading...";
+			if (splashScreenProgress)
+				progressText = "Loading system config...";
+			window.renderLoadingScreen(progressText);
+		}
 	}
 
 	const char* errorMsg = NULL;
@@ -298,10 +350,13 @@ int main(int argc, char* argv[])
 	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();
 
+	if(splashScreen && splashScreenProgress)
+		window.renderLoadingScreen("Done.");
+
 	//choose which GUI to open depending on if an input configuration already exists
 	if(errorMsg == NULL)
 	{
-		if(fs::exists(InputManager::getConfigPath()) && InputManager::getInstance()->getNumConfiguredDevices() > 0)
+		if(Utils::FileSystem::exists(InputManager::getConfigPath()) && InputManager::getInstance()->getNumConfiguredDevices() > 0)
 		{
 			ViewController::get()->goToStart();
 		}else{
@@ -373,6 +428,7 @@ int main(int argc, char* argv[])
 		delete window.peekGui();
 	window.deinit();
 
+	MameNames::deinit();
 	CollectionSystemManager::deinit();
 	SystemData::deleteSystems();
 

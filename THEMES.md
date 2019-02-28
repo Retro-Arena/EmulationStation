@@ -277,10 +277,11 @@ You can now change the order in which elements are rendered by setting `zIndex` 
 * `carousel name="systemcarousel"` - 40
 * `text name="systemInfo"` - 50
 
-##### basic, detailed, video
+##### basic, detailed, grid, video
 * `image name="background"` - 0
 * Extra Elements `extra="true"` - 10
 * `textlist name="gamelist"` - 20
+* `imagegrid name="gamegrid"` - 20
 * Media
 	* `image name="md_image"` - 30
 	* `video name="md_video"` - 30
@@ -305,6 +306,7 @@ You can now change the order in which elements are rendered by setting `zIndex` 
 		* `datetime name="md_lastplayed"`
 		* `text name="md_playcount"`
 		* `text name="md_description"`
+		* `text name="md_name"`
 * System Logo/Text - 50
 	* `text name="logoText"`
 	* `image name="logo"`
@@ -356,7 +358,7 @@ Reference
 * `text name="logoText"` - ALL
 	- Displays the name of the system.  Only present if no "logo" image is specified.  Displayed at the top of the screen, centered by default.
 * `image name="logo"` - ALL
-	- A header image.  If a non-empty `path` is specified, `text name="headerText"` will be hidden and this image will be, by default, displayed roughly in its place.
+	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Centered by default.
 
@@ -370,7 +372,7 @@ Reference
 * `text name="logoText"` - ALL
 	- Displays the name of the system.  Only present if no "logo" image is specified.  Displayed at the top of the screen, centered by default.
 * `image name="logo"` - ALL
-	- A header image.  If a non-empty `path` is specified, `text name="headerText"` will be hidden and this image will be, by default, displayed roughly in its place.
+	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Left aligned by default.
 
@@ -408,6 +410,8 @@ Reference
 			- The "playcount" metadata (number of times the game has been played).
 		* `text name="md_description"` - POSITION | SIZE | FONT_PATH | FONT_SIZE | COLOR | Z_INDEX
 			- Text is the "desc" metadata.  If no `pos`/`size` is specified, will move and resize to fit under the lowest label and reach to the bottom of the screen.
+		* `text name="md_name"` - ALL
+			- The "name" metadata (the game name). Unlike the others metadata fields, the name is positioned offscreen by default
 
 #### video
 * `helpsystem name="help"` - ALL
@@ -417,7 +421,7 @@ Reference
 * `text name="logoText"` - ALL
 	- Displays the name of the system.  Only present if no "logo" image is specified.  Displayed at the top of the screen, centered by default.
 * `image name="logo"` - ALL
-	- A header image.  If a non-empty `path` is specified, `text name="headerText"` will be hidden and this image will be, by default, displayed roughly in its place.
+	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
 * `textlist name="gamelist"` - ALL
 	- The gamelist.  `primaryColor` is for games, `secondaryColor` is for folders.  Left aligned by default.
 
@@ -459,7 +463,9 @@ Reference
 			- The "playcount" metadata (number of times the game has been played).
 		* `text name="md_description"` - POSITION | SIZE | FONT_PATH | FONT_SIZE | COLOR | Z_INDEX
 			- Text is the "desc" metadata.  If no `pos`/`size` is specified, will move and resize to fit under the lowest label and reach to the bottom of the screen.
-			
+		* `text name="md_name"` - ALL
+			- The "name" metadata (the game name). Unlike the others metadata fields, the name is positioned offscreen by default
+
 ---
 
 #### grid
@@ -470,7 +476,48 @@ Reference
 * `text name="logoText"` - ALL
 	- Displays the name of the system.  Only present if no "logo" image is specified.  Displayed at the top of the screen, centered by default.
 * `image name="logo"` - ALL
-	- A header image.  If a non-empty `path` is specified, `text name="headerText"` will be hidden and this image will be, by default, displayed roughly in its place.
+	- A header image.  If a non-empty `path` is specified, `text name="logoText"` will be hidden and this image will be, by default, displayed roughly in its place.
+* `imagegrid name="gamegrid"` - ALL
+	- The gamegrid. The number of tile displayed is controlled by its size, margin and the default tile max size.
+* `gridtile name="default"` - ALL
+    - Note that many of the default gridtile parameters change the selected gridtile parameters if they are not explicitly set by the theme. For example, changing the background image of the default gridtile also change the background image of the selected gridtile. Refer to the gridtile documentation for more informations.
+* `gridtile name="selected"` - ALL
+    - See default gridtile description right above.
+
+* Metadata
+	* Labels
+		* `text name="md_lbl_rating"` - ALL
+		* `text name="md_lbl_releasedate"` - ALL
+		* `text name="md_lbl_developer"` - ALL
+		* `text name="md_lbl_publisher"` - ALL
+		* `text name="md_lbl_genre"` - ALL
+		* `text name="md_lbl_players"` - ALL
+		* `text name="md_lbl_lastplayed"` - ALL
+		* `text name="md_lbl_playcount"` - ALL
+
+	* Values
+		* All values will follow to the right of their labels if a position isn't specified.
+
+		* `rating name="md_rating"` - ALL
+			- The "rating" metadata.
+		* `datetime name="md_releasedate"` - ALL
+			- The "releasedate" metadata.
+		* `text name="md_developer"` - ALL
+			- The "developer" metadata.
+		* `text name="md_publisher"` - ALL
+			- The "publisher" metadata.
+		* `text name="md_genre"` - ALL
+			- The "genre" metadata.
+		* `text name="md_players"` - ALL
+			- The "players" metadata (number of players the game supports).
+		* `datetime name="md_lastplayed"` - ALL
+			- The "lastplayed" metadata.  Displayed as a string representing the time relative to "now" (e.g. "3 hours ago").
+		* `text name="md_playcount"` - ALL
+			- The "playcount" metadata (number of times the game has been played).
+		* `text name="md_description"` - POSITION | SIZE | FONT_PATH | FONT_SIZE | COLOR | Z_INDEX
+			- Text is the "desc" metadata.  If no `pos`/`size` is specified, will move and resize to fit under the lowest label and reach to the bottom of the screen.
+		* `text name="md_name"` - ALL
+			- The "name" metadata (the game name). Unlike the others metadata fields, the name is positioned offscreen by default
 
 ---
 
@@ -481,7 +528,7 @@ Reference
 	- The system logo carousel
 * `image name="logo"` - PATH | COLOR
 	- A logo image, to be displayed in the system logo carousel.
-* `text name="logoText"` - FONT_PATH | COLOR | FORCE_UPPERCASE
+* `text name="logoText"` - FONT_PATH | COLOR | FORCE_UPPERCASE | LINE_SPACING | TEXT
 	- A logo text, to be displayed system name in the system logo carousel when no logo is available.
 * `text name="systemInfo"` - ALL
 	- Displays details of the system currently selected in the carousel.
@@ -531,7 +578,39 @@ Can be created as an extra.
 	- Multiply each pixel's color by this color. For example, an all-white image with `<color>FF0000</color>` would become completely red.  You can also control the transparency of an image with `<color>FFFFFFAA</color>` - keeping all the pixels their normal color and only affecting the alpha channel.
 * `zIndex` - type: FLOAT.
 	- z-index value for component.  Components will be rendered in order of z-index value from low to high.
-	
+
+#### imagegrid
+
+* `pos` - type: NORMALIZED_PAIR.
+* `size` - type: NORMALIZED_PAIR.
+    - The size of the grid. Take care the selected tile can go out of the grid size, so don't position the grid too close to another element or the screen border.
+* `margin` - type: NORMALIZED_PAIR.
+* `gameImage` - type: PATH.
+    - The default image used for games which doesn't have an image.
+* `folderImage` - type: PATH.
+    - The default image used for folders which doesn't have an image.
+* `scrollDirection` - type: STRING.
+    - `vertical` by default, can also be set to `horizontal`. Not that in `horizontal` mod, the tiles are ordered from top to bottom, then from left to right.
+
+#### gridtile
+
+* `size` - type: NORMALIZED_PAIR.
+    - The size of the default gridtile is used to calculate how many tiles can fit in the imagegrid. If not explicitly set, the size of the selected gridtile is equal the size of the default gridtile * 1.2
+* `padding` - type: NORMALIZED_PAIR.
+    - The padding around the gridtile content. Default `16 16`. If not explicitly set, the selected tile padding will be equal to the default tile padding.
+* `imageColor` - type: COLOR.
+    - The default tile image color and selected tile image color have no influence on each others.
+* `backgroundImage` - type: PATH.
+    - If not explicitly set, the selected tile background image will be the same as the default tile background image.
+* `backgroundCornerSize` - type: NORMALIZED_PAIR.
+    - The corner size of the ninepatch used for the tile background. Default is `16 16`.
+* `backgroundColor` - type: COLOR.
+    - A shortcut to define both the center color and edge color at the same time. The default tile background color and selected tile background color have no influence on each others.
+* `backgroundCenterColor` - type: COLOR.
+    - Set the color of the center part of the ninepatch. The default tile background center color and selected tile background center color have no influence on each others.
+* `backgroundEdgeColor` - type: COLOR.
+    - Set the color of the edge parts of the ninepatch. The default tile background edge color and selected tile background edge color have no influence on each others.
+
 #### video
 
 * `pos` - type: NORMALIZED_PAIR.
@@ -646,18 +725,44 @@ EmulationStation borrows the concept of "nine patches" from Android (or "9-Slice
 	- Path to the "filled star" image.  Image must be square (width equals height).
 * `unfilledPath` - type: PATH.
 	- Path to the "unfilled star" image.  Image must be square (width equals height).
+* `color` - type: COLOR.
+	- Multiply each pixel's color by this color. For example, an all-white image with `<color>FF0000</color>` would become completely red.  You can also control the transparency of an image with `<color>FFFFFFAA</color>` - keeping all the pixels their normal color and only affecting the alpha channel.
 * `zIndex` - type: FLOAT.
 	- z-index value for component.  Components will be rendered in order of z-index value from low to high.	
 
 #### datetime
-
 * `pos` - type: NORMALIZED_PAIR.
 * `size` - type: NORMALIZED_PAIR.
-	- You should probably not set this.  Leave it to `fontSize`.
+	- Possible combinations:
+	- `0 0` - automatically size so text fits on one line (expanding horizontally).
+	- `w 0` - automatically wrap text so it doesn't go beyond `w` (expanding vertically).
+	- `w h` - works like a "text box."  If `h` is non-zero and `h` <= `fontSize` (implying it should be a single line of text), text that goes beyond `w` will be truncated with an elipses (...).
+* `origin` - type: NORMALIZED_PAIR.
+	- Where on the component `pos` refers to.  For example, an origin of `0.5 0.5` and a `pos` of `0.5 0.5` would place the component exactly in the middle of the screen.  If the "POSITION" and "SIZE" attributes are themable, "ORIGIN" is implied.
+* `rotation` - type: FLOAT.
+	- angle in degrees that the text should be rotated.  Positive values will rotate clockwise, negative values will rotate counterclockwise.
+* `rotationOrigin` - type: NORMALIZED_PAIR.
+	- Point around which the text will be rotated. Defaults to `0.5 0.5`.
 * `color` - type: COLOR.
+* `backgroundColor` - type: COLOR;
 * `fontPath` - type: PATH.
+	- Path to a truetype font (.ttf).
 * `fontSize` - type: FLOAT.
+	- Size of the font as a percentage of screen height (e.g. for a value of `0.1`, the text's height would be 10% of the screen height).
+* `alignment` - type: STRING.
+	- Valid values are "left", "center", or "right".  Controls alignment on the X axis.  "center" will also align vertically.
 * `forceUppercase` - type: BOOLEAN.  Draw text in uppercase.
+* `lineSpacing` - type: FLOAT.  Controls the space between lines (as a multiple of font height).  Default is 1.5.
+* `zIndex` - type: FLOAT.
+	- z-index value for component.  Components will be rendered in order of z-index value from low to high.
+* `displayRelative` - type: BOOLEAN.  Renders the datetime as a a relative string (ex: 'x days ago')
+* `format` - type: STRING. Specifies format for rendering datetime.
+	- %Y: The year, including the century (1900)
+	- %m: The month number [01,12]
+	- %d: The day of the month [01,31]
+	- %H: The hour (24-hour clock) [00,23]
+	- %M: The minute [00,59]
+	- %S: The second [00,59]
 
 #### sound
 
@@ -667,6 +772,8 @@ EmulationStation borrows the concept of "nine patches" from Android (or "9-Slice
 #### helpsystem
 
 * `pos` - type: NORMALIZED_PAIR.  Default is "0.012 0.9515"
+* `origin` - type: NORMALIZED_PAIR.
+	- Where on the component `pos` refers to. For example, an origin of `0.5 0.5` and a `pos` of `0.5 0.5` would place the component exactly in the middle of the screen.
 * `textColor` - type: COLOR.  Default is 777777FF.
 * `iconColor` - type: COLOR.  Default is 777777FF.
 * `fontPath` - type: PATH.
@@ -676,7 +783,7 @@ EmulationStation borrows the concept of "nine patches" from Android (or "9-Slice
 
 * `type` - type: STRING.
 	- Sets the scoll direction of the carousel.
-	- Accepted values are "horizontal", "vertical" or "vertical_wheel".
+	- Accepted values are "horizontal", "vertical", "horizontal_wheel" or "vertical_wheel".
 	- Default is "horizontal".
 * `size` - type: NORMALIZED_PAIR. Default is "1 0.2325"
 * `pos` - type: NORMALIZED_PAIR.  Default is "0 0.38375".
@@ -692,13 +799,13 @@ EmulationStation borrows the concept of "nine patches" from Android (or "9-Slice
 * `logoRotation` - type: FLOAT.
 	- Angle in degrees that the logos should be rotated.  Value should be positive.
 	- Default is 7.5
-	- This property only applies when `type` is "vertical_wheel".
+	- This property only applies when `type` is "horizontal_wheel" or "vertical_wheel".
 * `logoRotationOrigin` - type: NORMALIZED_PAIR.
 	- Point around which the logos will be rotated. Defaults to `-5 0.5`.
-	- This property only applies when `type` is "vertical_wheel".
+	- This property only applies when `type` is "horizontal_wheel" or "vertical_wheel".
 * `logoAlignment` - type: STRING.
 	- Sets the alignment of the logos relative to the carousel.
-	- Accepted values are "top", "bottom" or "center" when `type` is "horizontal".
+	- Accepted values are "top", "bottom" or "center" when `type` is "horizontal" or "horizontal_wheel".
 	- Accepted values are "left", "right" or "center" when `type` is "vertical" or "vertical_wheel".
 	- Default is "center"
 * `maxLogoCount` - type: FLOAT.

@@ -2,8 +2,6 @@
 
 #include <string.h>
 
-extern const char* mameNameToRealName[];
-
 namespace PlatformIds
 {
 	const char* PlatformNames[PLATFORM_COUNT + 1] = {
@@ -63,7 +61,10 @@ namespace PlatformIds
 		"psvita",
 		"psp", // playstation portable
 		"snes", // super nintendo entertainment system
-		"pcengine", // turbografx-16/pcengine
+		"scummvm",
+		"x6800",
+		"pcengine", // (aka turbografx-16) HuCards only
+		"pcenginecd", // (aka turbografx-16) CD-ROMs only
 		"wonderswan",
 		"wonderswancolor",
 		"zxspectrum",
@@ -93,18 +94,5 @@ namespace PlatformIds
 	const char* getPlatformName(PlatformId id)
 	{
 		return PlatformNames[id];
-	}
-
-	const char* getCleanMameName(const char* from)
-	{
-		const char** mameNames = mameNameToRealName;
-
-		while(*mameNames != NULL && strcmp(from, *mameNames) != 0)
-			mameNames += 2;
-
-		if(*mameNames)
-			return *(mameNames + 1);
-		
-		return from;
 	}
 }

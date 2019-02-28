@@ -4,9 +4,9 @@
 
 #include "components/IList.h"
 #include "math/Misc.h"
+#include "utils/StringUtil.h"
 #include "Log.h"
 #include "Sound.h"
-#include "Util.h"
 #include <memory>
 
 class TextCache;
@@ -188,7 +188,7 @@ void TextListComponent<T>::render(const Transform4x4f& parentTrans)
 			color = mColors[entry.data.colorId];
 
 		if(!entry.data.textCache)
-			entry.data.textCache = std::unique_ptr<TextCache>(font->buildTextCache(mUppercase ? strToUpper(entry.name) : entry.name, 0, 0, 0x000000FF));
+			entry.data.textCache = std::unique_ptr<TextCache>(font->buildTextCache(mUppercase ? Utils::String::toUpper(entry.name) : entry.name, 0, 0, 0x000000FF));
 
 		entry.data.textCache->setColor(color);
 
@@ -251,13 +251,13 @@ bool TextListComponent<T>::input(InputConfig* config, Input input)
 	{
 		if(input.value != 0)
 		{
-			if(config->isMappedTo("down", input))
+			if(config->isMappedLike("down", input))
 			{
 				listInput(1);
 				return true;
 			}
 
-			if(config->isMappedTo("up", input))
+			if(config->isMappedLike("up", input))
 			{
 				listInput(-1);
 				return true;
@@ -274,7 +274,7 @@ bool TextListComponent<T>::input(InputConfig* config, Input input)
 				return true;
 			}
 		}else{
-			if(config->isMappedTo("down", input) || config->isMappedTo("up", input) || 
+			if(config->isMappedLike("down", input) || config->isMappedLike("up", input) || 
 				config->isMappedTo("pagedown", input) || config->isMappedTo("pageup", input))
 			{
 				stopScrolling();

@@ -2,8 +2,8 @@
 #ifndef ES_APP_META_DATA_H
 #define ES_APP_META_DATA_H
 
-#include <boost/date_time/posix_time/ptime.hpp>
-#include <boost/filesystem/path.hpp>
+#include <map>
+#include <vector>
 
 namespace pugi { class xml_node; }
 
@@ -44,18 +44,16 @@ const std::vector<MetaDataDecl>& getMDDByType(MetaDataListType type);
 class MetaDataList
 {
 public:
-	static MetaDataList createFromXML(MetaDataListType type, pugi::xml_node& node, const boost::filesystem::path& relativeTo);
-	void appendToXML(pugi::xml_node& parent, bool ignoreDefaults, const boost::filesystem::path& relativeTo) const;
+	static MetaDataList createFromXML(MetaDataListType type, pugi::xml_node& node, const std::string& relativeTo);
+	void appendToXML(pugi::xml_node& parent, bool ignoreDefaults, const std::string& relativeTo) const;
 
 	MetaDataList(MetaDataListType type);
 	
 	void set(const std::string& key, const std::string& value);
-	void setTime(const std::string& key, const boost::posix_time::ptime& time); //times are internally stored as ISO strings (e.g. boost::posix_time::to_iso_string(ptime))
 
 	const std::string& get(const std::string& key) const;
 	int getInt(const std::string& key) const;
 	float getFloat(const std::string& key) const;
-	boost::posix_time::ptime getTime(const std::string& key) const;
 
 	bool isDefault();
 

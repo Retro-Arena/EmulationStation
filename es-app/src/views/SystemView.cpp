@@ -37,7 +37,7 @@ void SystemView::populate()
 		if(mViewNeedsReload)
 			getViewElements(theme);
 
-		if((*it)->getDisplayedGameCount() > 0)
+		if((*it)->isVisible())
 		{
 			Entry e;
 			e.name = (*it)->getName();
@@ -55,6 +55,7 @@ void SystemView::populate()
 					ImageComponent* logo = new ImageComponent(mWindow, false, false);
 					logo->setMaxSize(mCarousel.logoSize * mCarousel.logoScale);
 					logo->applyTheme(theme, "system", "logo", ThemeFlags::PATH | ThemeFlags::COLOR);
+					logo->setRotateByTargetSize(true);
 					e.data.logo = std::shared_ptr<GuiComponent>(logo);
 				}
 			}
@@ -67,13 +68,17 @@ void SystemView::populate()
 					0x000000FF,
 					ALIGN_CENTER);
 				text->setSize(mCarousel.logoSize * mCarousel.logoScale);
-				text->applyTheme((*it)->getTheme(), "system", "logoText", ThemeFlags::FONT_PATH | ThemeFlags::FONT_SIZE | ThemeFlags::COLOR | ThemeFlags::FORCE_UPPERCASE);
+				text->applyTheme((*it)->getTheme(), "system", "logoText", ThemeFlags::FONT_PATH | ThemeFlags::FONT_SIZE | ThemeFlags::COLOR | ThemeFlags::FORCE_UPPERCASE | ThemeFlags::LINE_SPACING | ThemeFlags::TEXT);
 				e.data.logo = std::shared_ptr<GuiComponent>(text);
 
 				if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
+				{
 					text->setHorizontalAlignment(mCarousel.logoAlignment);
-				else
+					text->setVerticalAlignment(ALIGN_CENTER);
+				} else {
+					text->setHorizontalAlignment(ALIGN_CENTER);
 					text->setVerticalAlignment(mCarousel.logoAlignment);
+				}
 			}
 
 			if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
@@ -145,25 +150,26 @@ bool SystemView::input(InputConfig* config, Input input)
 		{
 		case VERTICAL:
 		case VERTICAL_WHEEL:
-			if (config->isMappedTo("up", input))
+			if (config->isMappedLike("up", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedTo("down", input))
+			if (config->isMappedLike("down", input))
 			{
 				listInput(1);
 				return true;
 			}
 			break;
 		case HORIZONTAL:
+		case HORIZONTAL_WHEEL:
 		default:
-			if (config->isMappedTo("left", input))
+			if (config->isMappedLike("left", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedTo("right", input))
+			if (config->isMappedLike("right", input))
 			{
 				listInput(1);
 				return true;
@@ -185,12 +191,12 @@ bool SystemView::input(InputConfig* config, Input input)
 			return true;
 		}
 	}else{
-		if(config->isMappedTo("left", input) ||
-			config->isMappedTo("right", input) ||
-			config->isMappedTo("up", input) ||
-			config->isMappedTo("down", input))
+		if(config->isMappedLike("left", input) ||
+			config->isMappedLike("right", input) ||
+			config->isMappedLike("up", input) ||
+			config->isMappedLike("down", input))
 			listInput(0);
-		if(config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
+		if(!UIModeController::getInstance()->isUIModeKid() && config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
 		{
 			mWindow->startScreenSaver();
 			mWindow->renderScreenSaver();
@@ -369,14 +375,14 @@ void SystemView::render(const Transform4x4f& parentTrans)
 std::vector<HelpPrompt> SystemView::getHelpPrompts()
 {
 	std::vector<HelpPrompt> prompts;
-	if (mCarousel.type == VERTICAL)
+	if (mCarousel.type == VERTICAL || mCarousel.type == VERTICAL_WHEEL)
 		prompts.push_back(HelpPrompt("up/down", "choose"));
 	else
 		prompts.push_back(HelpPrompt("left/right", "choose"));
 	prompts.push_back(HelpPrompt("a", "select"));
 	prompts.push_back(HelpPrompt("x", "random"));
 
-	if (Settings::getInstance()->getBool("ScreenSaverControls"))
+	if (!UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("ScreenSaverControls"))
 		prompts.push_back(HelpPrompt("select", "launch screensaver"));
 
 	return prompts;
@@ -458,6 +464,15 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 			else
 				xOff = (mCarousel.size.x() - mCarousel.logoSize.x()) / 2;
 			break;
+		case HORIZONTAL_WHEEL:
+			xOff = (mCarousel.size.x() - mCarousel.logoSize.x()) / 2 - (mCamOffset * logoSpacing[1]);
+			if (mCarousel.logoAlignment == ALIGN_TOP)
+				yOff = mCarousel.logoSize.y() / 10;
+			else if (mCarousel.logoAlignment == ALIGN_BOTTOM)
+				yOff = mCarousel.size.y() - (mCarousel.logoSize.y() * 1.1f);
+			else
+				yOff = (mCarousel.size.y() - mCarousel.logoSize.y()) / 2;
+			break;
 		case HORIZONTAL:
 		default:
 			logoSpacing[0] = ((mCarousel.size.x() - (mCarousel.logoSize.x() * mCarousel.maxLogoCount)) / (mCarousel.maxLogoCount)) + mCarousel.logoSize.x();
@@ -506,7 +521,7 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 		opacity = Math::max((int) 0x80, opacity);
 
 		const std::shared_ptr<GuiComponent> &comp = mEntries.at(index).data.logo;
-		if (mCarousel.type == VERTICAL_WHEEL) {
+		if (mCarousel.type == VERTICAL_WHEEL || mCarousel.type == HORIZONTAL_WHEEL) {
 			comp->setRotationDegrees(mCarousel.logoRotation * distance);
 			comp->setRotationOrigin(mCarousel.logoRotationOrigin);
 		}
@@ -545,7 +560,7 @@ void SystemView::renderExtras(const Transform4x4f& trans, float lower, float upp
 		if (mShowing || index == mCursor)
 		{
 			Transform4x4f extrasTrans = trans;
-			if (mCarousel.type == HORIZONTAL)
+			if (mCarousel.type == HORIZONTAL || mCarousel.type == HORIZONTAL_WHEEL)
 				extrasTrans.translate(Vector3f((i - mExtrasCamOffset) * mSize.x(), 0, 0));
 			else
 				extrasTrans.translate(Vector3f(0, (i - mExtrasCamOffset) * mSize.y(), 0));
@@ -616,6 +631,8 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 			mCarousel.type = VERTICAL;
 		else if (!(elem->get<std::string>("type").compare("vertical_wheel")))
 			mCarousel.type = VERTICAL_WHEEL;
+		else if (!(elem->get<std::string>("type").compare("horizontal_wheel")))
+			mCarousel.type = HORIZONTAL_WHEEL;
 		else
 			mCarousel.type = HORIZONTAL;
 	}
@@ -637,7 +654,7 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 		mCarousel.zIndex = elem->get<float>("zIndex");
 	if (elem->has("logoRotation"))
 		mCarousel.logoRotation = elem->get<float>("logoRotation");
-    if (elem->has("logoRotationOrigin"))
+	if (elem->has("logoRotationOrigin"))
 		mCarousel.logoRotationOrigin = elem->get<Vector2f>("logoRotationOrigin");
 	if (elem->has("logoAlignment"))
 	{

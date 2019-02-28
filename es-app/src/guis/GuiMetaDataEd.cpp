@@ -2,7 +2,7 @@
 
 #include "components/ButtonComponent.h"
 #include "components/ComponentList.h"
-#include "components/DateTimeComponent.h"
+#include "components/DateTimeEditComponent.h"
 #include "components/MenuComponent.h"
 #include "components/RatingComponent.h"
 #include "components/SwitchComponent.h"
@@ -11,12 +11,12 @@
 #include "guis/GuiMsgBox.h"
 #include "guis/GuiTextEditPopup.h"
 #include "resources/Font.h"
+#include "utils/StringUtil.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "FileData.h"
 #include "FileFilterIndex.h"
 #include "SystemData.h"
-#include "Util.h"
 #include "Window.h"
 
 GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector<MetaDataDecl>& mdd, ScraperSearchParams scraperParams,
@@ -36,7 +36,7 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 	mHeaderGrid = std::make_shared<ComponentGrid>(mWindow, Vector2i(1, 5));
 
 	mTitle = std::make_shared<TextComponent>(mWindow, "EDIT METADATA", Font::get(FONT_SIZE_LARGE), 0x555555FF, ALIGN_CENTER);
-	mSubtitle = std::make_shared<TextComponent>(mWindow, strToUpper(scraperParams.game->getPath().filename().generic_string()),
+	mSubtitle = std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(Utils::FileSystem::getFileName(scraperParams.game->getPath())),
 		Font::get(FONT_SIZE_SMALL), 0x777777FF, ALIGN_CENTER);
 	mHeaderGrid->setEntry(mTitle, Vector2i(0, 1), false, true);
 	mHeaderGrid->setEntry(mSubtitle, Vector2i(0, 3), false, true);
@@ -58,7 +58,7 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 		// create ed and add it (and any related components) to mMenu
 		// ed's value will be set below
 		ComponentListRow row;
-		auto lbl = std::make_shared<TextComponent>(mWindow, strToUpper(iter->displayName), Font::get(FONT_SIZE_SMALL), 0x777777FF);
+		auto lbl = std::make_shared<TextComponent>(mWindow, Utils::String::toUpper(iter->displayName), Font::get(FONT_SIZE_SMALL), 0x777777FF);
 		row.addElement(lbl, true); // label
 
 		switch(iter->type)
@@ -87,21 +87,21 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 			}
 		case MD_DATE:
 			{
-				ed = std::make_shared<DateTimeComponent>(window);
+				ed = std::make_shared<DateTimeEditComponent>(window);
 				row.addElement(ed, false);
 
 				auto spacer = std::make_shared<GuiComponent>(mWindow);
 				spacer->setSize(Renderer::getScreenWidth() * 0.0025f, 0);
 				row.addElement(spacer, false);
 
-				// pass input to the actual DateTimeComponent instead of the spacer
+				// pass input to the actual DateTimeEditComponent instead of the spacer
 				row.input_handler = std::bind(&GuiComponent::input, ed.get(), std::placeholders::_1, std::placeholders::_2);
 
 				break;
 			}
 		case MD_TIME:
 			{
-				ed = std::make_shared<DateTimeComponent>(window, DateTimeComponent::DISP_RELATIVE_TO_NOW);
+				ed = std::make_shared<DateTimeEditComponent>(window, DateTimeEditComponent::DISP_RELATIVE_TO_NOW);
 				row.addElement(ed, false);
 				break;
 			}
@@ -148,7 +148,7 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 	if(mDeleteFunc)
 	{
 		auto deleteFileAndSelf = [&] { mDeleteFunc(); delete this; };
-		auto deleteBtnFunc = [this, deleteFileAndSelf] { mWindow->pushGui(new GuiMsgBox(mWindow, "THIS WILL DELETE A FILE!\nARE YOU SURE?", "YES", deleteFileAndSelf, "NO", nullptr)); };
+		auto deleteBtnFunc = [this, deleteFileAndSelf] { mWindow->pushGui(new GuiMsgBox(mWindow, "THIS WILL DELETE THE ACTUAL GAME FILE(S)!\nARE YOU SURE?", "YES", deleteFileAndSelf, "NO", nullptr)); };
 		buttons.push_back(std::make_shared<ButtonComponent>(mWindow, "DELETE", "delete", deleteBtnFunc));
 	}
 

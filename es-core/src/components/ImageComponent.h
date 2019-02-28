@@ -40,14 +40,32 @@ public:
 	void setMaxSize(float width, float height);
 	inline void setMaxSize(const Vector2f& size) { setMaxSize(size.x(), size.y()); }
 
+	void setMinSize(float width, float height);
+	inline void setMinSize(const Vector2f& size) { setMinSize(size.x(), size.y()); }
+
+	Vector2f getRotationSize() const override;
+
+	// Applied AFTER image positioning and sizing
+	// cropTop(0.2) will crop 20% of the top of the image.
+	void cropLeft(float percent);
+	void cropTop(float percent);
+	void cropRight(float percent);
+	void cropBot(float percent);
+	void crop(float left, float top, float right, float bot);
+	void uncrop();
+
 	// Multiply all pixels in the image by this color when rendering.
 	void setColorShift(unsigned int color);
 
 	void setFlipX(bool flip); // Mirror on the X axis.
 	void setFlipY(bool flip); // Mirror on the Y axis.
 
+	void setRotateByTargetSize(bool rotate);  // Flag indicating if rotation should be based on target size vs. actual size.
+
 	// Returns the size of the current texture, or (0, 0) if none is loaded.  May be different than drawn size (use getSize() for that).
 	Vector2i getTextureSize() const;
+
+	Vector2f getSize() const override;
 
 	bool hasImage();
 
@@ -59,7 +77,7 @@ public:
 private:
 	Vector2f mTargetSize;
 
-	bool mFlipX, mFlipY, mTargetIsMax;
+	bool mFlipX, mFlipY, mTargetIsMax, mTargetIsMin;
 
 	// Calculates the correct mSize from our resizing information (set by setResize/setMaxSize).
 	// Used internally whenever the resizing parameters or texture change.
@@ -82,10 +100,14 @@ private:
 	std::string mDefaultPath;
 
 	std::shared_ptr<TextureResource> mTexture;
-	unsigned char			 mFadeOpacity;
-	bool					 mFading;
-	bool				     mForceLoad;
+	unsigned char			mFadeOpacity;
+	bool					mFading;
+	bool					mForceLoad;
 	bool					mDynamic;
+	bool					mRotateByTargetSize;
+
+	Vector2f mTopLeftCrop;
+	Vector2f mBottomRightCrop;
 };
 
 #endif // ES_CORE_COMPONENTS_IMAGE_COMPONENT_H

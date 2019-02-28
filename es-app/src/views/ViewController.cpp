@@ -7,6 +7,7 @@
 #include "guis/GuiMenu.h"
 #include "views/gamelist/DetailedGameListView.h"
 #include "views/gamelist/IGameListView.h"
+#include "views/gamelist/GridGameListView.h"
 #include "views/gamelist/VideoGameListView.h"
 #include "views/SystemView.h"
 #include "views/UIModeController.h"
@@ -55,13 +56,16 @@ void ViewController::goToStart()
 				return;
 			}
 		}
+
+		// Requested system doesn't exist
+		Settings::getInstance()->setString("StartupSystem", "");
 	}
 	goToSystemView(SystemData::sSystemVector.at(0));
 }
 
 void ViewController::ReloadAndGoToStart()
 {
-	mWindow->renderLoadingScreen();
+	mWindow->renderLoadingScreen("Loading...");
 	ViewController::get()->reloadAll();
 	ViewController::get()->goToStart();
 }
@@ -270,6 +274,7 @@ std::shared_ptr<IGameListView> ViewController::getGameListView(SystemData* syste
 	if(exists != mGameListViews.cend())
 		return exists->second;
 
+	system->getIndex()->setUIModeFilters();
 	//if we didn't, make it, remember it, and return it
 	std::shared_ptr<IGameListView> view;
 
@@ -283,6 +288,8 @@ std::shared_ptr<IGameListView> ViewController::getGameListView(SystemData* syste
 		selectedViewType = BASIC;
 	if (viewPreference.compare("detailed") == 0)
 		selectedViewType = DETAILED;
+	if (viewPreference.compare("grid") == 0)
+		selectedViewType = GRID;
 	if (viewPreference.compare("video") == 0)
 		selectedViewType = VIDEO;
 
@@ -313,9 +320,9 @@ std::shared_ptr<IGameListView> ViewController::getGameListView(SystemData* syste
 		case DETAILED:
 			view = std::shared_ptr<IGameListView>(new DetailedGameListView(mWindow, system->getRootFolder()));
 			break;
-		// case GRID placeholder for future implementation.
-		//		view = std::shared_ptr<IGameListView>(new GridGameListView(mWindow, system->getRootFolder()));
-		//		break;
+		case GRID:
+			view = std::shared_ptr<IGameListView>(new GridGameListView(mWindow, system->getRootFolder()));
+			break;
 		case BASIC:
 		default:
 			view = std::shared_ptr<IGameListView>(new BasicGameListView(mWindow, system->getRootFolder()));
@@ -353,7 +360,7 @@ bool ViewController::input(InputConfig* config, Input input)
 		return true;
 
 	// open menu
-	if(config->isMappedTo("start", input) && input.value != 0)
+	if(!UIModeController::getInstance()->isUIModeKid() && config->isMappedTo("start", input) && input.value != 0)
 	{
 		// open menu
 		mWindow->pushGui(new GuiMenu(mWindow));
@@ -422,8 +429,19 @@ void ViewController::render(const Transform4x4f& parentTrans)
 
 void ViewController::preload()
 {
+	uint32_t i = 0;
 	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
 	{
+		if(Settings::getInstance()->getBool("SplashScreen") &&
+			Settings::getInstance()->getBool("SplashScreenProgress"))
+		{
+			i++;
+			char buffer[100];
+			sprintf (buffer, "Loading '%s' (%d/%d)",
+				(*it)->getFullName().c_str(), i, SystemData::sSystemVector.size());
+			mWindow->renderLoadingScreen(std::string(buffer));
+		}
+
 		(*it)->getIndex()->resetFilters();
 		getGameListView(*it);
 	}
@@ -442,6 +460,7 @@ void ViewController::reloadGameListView(IGameListView* view, bool reloadTheme)
 
 			if(reloadTheme)
 				system->loadTheme();
+			system->getIndex()->setUIModeFilters();
 			std::shared_ptr<IGameListView> newView = getGameListView(system);
 
 			// to counter having come from a placeholder
@@ -507,7 +526,8 @@ std::vector<HelpPrompt> ViewController::getHelpPrompts()
 		return prompts;
 
 	prompts = mCurrentView->getHelpPrompts();
-	prompts.push_back(HelpPrompt("start", "menu"));
+	if(!UIModeController::getInstance()->isUIModeKid())
+		prompts.push_back(HelpPrompt("start", "menu"));
 
 	return prompts;
 }

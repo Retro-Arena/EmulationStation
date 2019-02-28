@@ -1,6 +1,7 @@
 #include "components/VideoVlcComponent.h"
 
 #include "resources/TextureResource.h"
+#include "utils/StringUtil.h"
 #include "PowerSaver.h"
 #include "Renderer.h"
 #include "Settings.h"
@@ -264,6 +265,10 @@ void VideoVlcComponent::handleLooping()
 		libvlc_state_t state = libvlc_media_player_get_state(mMediaPlayer);
 		if (state == libvlc_Ended)
 		{
+			if (!Settings::getInstance()->getBool("VideoAudio"))
+			{
+				libvlc_audio_set_mute(mMediaPlayer, 1);
+			}
 			//libvlc_media_player_set_position(mMediaPlayer, 0.0f);
 			libvlc_media_player_set_media(mMediaPlayer, mMedia);
 			libvlc_media_player_play(mMediaPlayer);
@@ -278,10 +283,9 @@ void VideoVlcComponent::startVideo()
 		mVideoHeight = 0;
 
 #ifdef WIN32
-		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> wton;
-		std::string path = wton.to_bytes(mVideoPath.c_str());
+		std::string path(Utils::String::replace(mVideoPath, "/", "\\"));
 #else
-		std::string path(mVideoPath.c_str());
+		std::string path(mVideoPath);
 #endif
 		// Make sure we have a video path
 		if (mVLC && (path.size() > 0))

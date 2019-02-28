@@ -62,7 +62,10 @@ namespace PlatformIds
 		PLAYSTATION_VITA,
 		PLAYSTATION_PORTABLE,
 		SUPER_NINTENDO,
-		TURBOGRAFX_16, // (also PC Engine)
+		SCUMMVM,
+		SHARP_X6800,
+		TURBOGRAFX_16, // (aka PC Engine) HuCards only
+		TURBOGRAFX_CD, // (aka PC Engine) CD-ROMs only
 		WONDERSWAN,
 		WONDERSWAN_COLOR,
 		ZX_SPECTRUM,
@@ -77,8 +80,6 @@ namespace PlatformIds
 
 	PlatformId getPlatformId(const char* str);
 	const char* getPlatformName(PlatformId id);
-
-	const char* getCleanMameName(const char* from);
 }
 
 #endif // ES_APP_PLATFORM_ID_H

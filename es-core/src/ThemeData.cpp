@@ -2,14 +2,14 @@
 
 #include "components/ImageComponent.h"
 #include "components/TextComponent.h"
+#include "utils/FileSystemUtil.h"
 #include "Log.h"
 #include "platform.h"
 #include "Settings.h"
-#include <boost/filesystem/operations.hpp>
-#include <boost/xpressive/xpressive_static.hpp>
 #include <pugixml/src/pugixml.hpp>
+#include <algorithm>
 
-std::vector<std::string> ThemeData::sSupportedViews { { "system" }, { "basic" }, { "detailed" }, { "video" } };
+std::vector<std::string> ThemeData::sSupportedViews { { "system" }, { "basic" }, { "detailed" }, { "grid" }, { "video" } };
 std::vector<std::string> ThemeData::sSupportedFeatures { { "video" }, { "carousel" }, { "z-index" } };
 
 std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> ThemeData::sElementMap {
@@ -25,6 +25,22 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "tile", BOOLEAN },
 		{ "color", COLOR },
 		{ "zIndex", FLOAT } } },
+	{ "imagegrid", {
+		{ "pos", NORMALIZED_PAIR },
+		{ "size", NORMALIZED_PAIR },
+		{ "margin", NORMALIZED_PAIR },
+		{ "gameImage", PATH },
+		{ "folderImage", PATH },
+		{ "scrollDirection", STRING } } },
+	{ "gridtile", {
+		{ "size", NORMALIZED_PAIR },
+		{ "padding", NORMALIZED_PAIR },
+		{ "imageColor", COLOR },
+		{ "backgroundImage", PATH },
+		{ "backgroundCornerSize", NORMALIZED_PAIR },
+		{ "backgroundColor", COLOR },
+		{ "backgroundCenterColor", COLOR },
+		{ "backgroundEdgeColor", COLOR } } },
 	{ "text", {
 		{ "pos", NORMALIZED_PAIR },
 		{ "size", NORMALIZED_PAIR },
@@ -74,10 +90,19 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 	{ "datetime", {
 		{ "pos", NORMALIZED_PAIR },
 		{ "size", NORMALIZED_PAIR },
-		{ "color", COLOR },
+		{ "origin", NORMALIZED_PAIR },
+		{ "rotation", FLOAT },
+		{ "rotationOrigin", NORMALIZED_PAIR },
+		{ "backgroundColor", COLOR },
 		{ "fontPath", PATH },
 		{ "fontSize", FLOAT },
+		{ "color", COLOR },
+		{ "alignment", STRING },
 		{ "forceUppercase", BOOLEAN },
+		{ "lineSpacing", FLOAT },
+		{ "value", STRING },
+		{ "format", STRING },
+		{ "displayRelative", BOOLEAN },
 		{ "zIndex", FLOAT } } },
 	{ "rating", {
 		{ "pos", NORMALIZED_PAIR },
@@ -93,6 +118,7 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "path", PATH } } },
 	{ "helpsystem", {
 		{ "pos", NORMALIZED_PAIR },
+		{ "origin", NORMALIZED_PAIR },
 		{ "textColor", COLOR },
 		{ "iconColor", COLOR },
 		{ "fontPath", PATH },
@@ -124,10 +150,8 @@ std::map<std::string, std::map<std::string, ThemeData::ElementPropertyType>> The
 		{ "zIndex", FLOAT } } }
 };
 
-namespace fs = boost::filesystem;
-
 #define MINIMUM_THEME_FORMAT_VERSION 3
-#define CURRENT_THEME_FORMAT_VERSION 5
+#define CURRENT_THEME_FORMAT_VERSION 6
 
 // helper
 unsigned int getHexColor(const char* str)
@@ -151,49 +175,26 @@ unsigned int getHexColor(const char* str)
 	return val;
 }
 
-// helper
-std::string resolvePath(const char* in, const fs::path& relative)
-{
-	if(!in || in[0] == '\0')
-		return in;
-
-	fs::path relPath = relative.parent_path();
-	
-	boost::filesystem::path path(in);
-	
-	// we use boost filesystem here instead of just string checks because 
-	// some directories could theoretically start with ~ or .
-	if(*path.begin() == "~")
-	{
-		path = getHomePath() + (in + 1);
-	}else if(*path.begin() == ".")
-	{
-		path = relPath / (in + 1);
-	}
-
-	return path.generic_string();
-}
-
 std::map<std::string, std::string> mVariables;
-
-std::string &format_variables(const boost::xpressive::smatch &what)
-{
-	return mVariables[what[1].str()];
-}
 
 std::string resolvePlaceholders(const char* in)
 {
-	if(!in || in[0] == '\0')
-		return std::string(in);
-		
 	std::string inStr(in);
-	
-	using namespace boost::xpressive;
-	sregex rex = "${" >> (s1 = +('.' | _w)) >> '}';
-    
-	std::string output = regex_replace(inStr, rex, format_variables);
 
-	return output;
+	if(inStr.empty())
+		return inStr;
+
+	const size_t variableBegin = inStr.find("${");
+	const size_t variableEnd   = inStr.find("}", variableBegin);
+
+	if((variableBegin == std::string::npos) || (variableEnd == std::string::npos))
+		return inStr;
+
+	std::string prefix  = inStr.substr(0, variableBegin);
+	std::string replace = inStr.substr(variableBegin + 2, variableEnd - (variableBegin + 2));
+	std::string suffix  = resolvePlaceholders(inStr.substr(variableEnd + 1).c_str());
+
+	return prefix + mVariables[replace] + suffix;
 }
 
 ThemeData::ThemeData()
@@ -208,7 +209,7 @@ void ThemeData::loadFile(std::map<std::string, std::string> sysDataMap, const st
 	ThemeException error;
 	error.setFiles(mPaths);
 
-	if(!fs::exists(path))
+	if(!Utils::FileSystem::exists(path))
 		throw error << "File does not exist!";
 
 	mVersion = 0;
@@ -247,8 +248,8 @@ void ThemeData::parseIncludes(const pugi::xml_node& root)
 
 	for(pugi::xml_node node = root.child("include"); node; node = node.next_sibling("include"))
 	{
-		const char* relPath = node.text().get();
-		std::string path = resolvePath(relPath, mPaths.back());
+		std::string relPath = resolvePlaceholders(node.text().as_string());
+		std::string path = Utils::FileSystem::resolveRelativePath(relPath, mPaths.back(), true);
 		if(!ResourceManager::getInstance()->fileExists(path))
 			throw error << "Included file \"" << relPath << "\" not found! (resolved to \"" << path << "\")";
 
@@ -415,7 +416,7 @@ void ThemeData::parseElement(const pugi::xml_node& root, const std::map<std::str
 			break;
 		case PATH:
 		{
-			std::string path = resolvePath(str.c_str(), mPaths.back().string());
+			std::string path = Utils::FileSystem::resolveRelativePath(str, mPaths.back(), true);
 			if(!ResourceManager::getInstance()->fileExists(path))
 			{
 				std::stringstream ss;
@@ -486,8 +487,8 @@ const std::shared_ptr<ThemeData>& ThemeData::getDefault()
 	{
 		theme = std::shared_ptr<ThemeData>(new ThemeData());
 
-		const std::string path = getHomePath() + "/.emulationstation/es_theme_default.xml";
-		if(fs::exists(path))
+		const std::string path = Utils::FileSystem::getHomePath() + "/.emulationstation/es_theme_default.xml";
+		if(Utils::FileSystem::exists(path))
 		{
 			try
 			{
@@ -538,21 +539,22 @@ std::map<std::string, ThemeSet> ThemeData::getThemeSets()
 	std::map<std::string, ThemeSet> sets;
 
 	static const size_t pathCount = 2;
-	fs::path paths[pathCount] = { 
+	std::string paths[pathCount] =
+	{ 
 		"/etc/emulationstation/themes", 
-		getHomePath() + "/.emulationstation/themes" 
+		Utils::FileSystem::getHomePath() + "/.emulationstation/themes" 
 	};
-
-	fs::directory_iterator end;
 
 	for(size_t i = 0; i < pathCount; i++)
 	{
-		if(!fs::is_directory(paths[i]))
+		if(!Utils::FileSystem::isDirectory(paths[i]))
 			continue;
 
-		for(fs::directory_iterator it(paths[i]); it != end; ++it)
+		Utils::FileSystem::stringList dirContent = Utils::FileSystem::getDirContent(paths[i]);
+
+		for(Utils::FileSystem::stringList::const_iterator it = dirContent.cbegin(); it != dirContent.cend(); ++it)
 		{
-			if(fs::is_directory(*it))
+			if(Utils::FileSystem::isDirectory(*it))
 			{
 				ThemeSet set = {*it};
 				sets[set.getName()] = set;
@@ -563,9 +565,9 @@ std::map<std::string, ThemeSet> ThemeData::getThemeSets()
 	return sets;
 }
 
-fs::path ThemeData::getThemeFromCurrentSet(const std::string& system)
+std::string ThemeData::getThemeFromCurrentSet(const std::string& system)
 {
-	auto themeSets = ThemeData::getThemeSets();
+	std::map<std::string, ThemeSet> themeSets = ThemeData::getThemeSets();
 	if(themeSets.empty())
 	{
 		// no theme sets available

@@ -1,11 +1,11 @@
 #include "views/gamelist/BasicGameListView.h"
 
+#include "utils/FileSystemUtil.h"
 #include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "CollectionSystemManager.h"
 #include "Settings.h"
 #include "SystemData.h"
-#include <boost/filesystem/operations.hpp>
 
 BasicGameListView::BasicGameListView(Window* window, FileData* root)
 	: ISimpleGameListView(window, root), mList(window)
@@ -97,6 +97,16 @@ void BasicGameListView::addPlaceholder()
 	mList.add(placeholder->getName(), placeholder, (placeholder->getType() == PLACEHOLDER));
 }
 
+std::string BasicGameListView::getQuickSystemSelectRightButton()
+{
+	return "right";
+}
+
+std::string BasicGameListView::getQuickSystemSelectLeftButton()
+{
+	return "left";
+}
+
 void BasicGameListView::launch(FileData* game)
 {
 	ViewController::get()->launch(game);
@@ -105,19 +115,19 @@ void BasicGameListView::launch(FileData* game)
 void BasicGameListView::remove(FileData *game, bool deleteFile)
 {
 	if (deleteFile)
-		boost::filesystem::remove(game->getPath());  // actually delete the file on the filesystem
+		Utils::FileSystem::removeFile(game->getPath());  // actually delete the file on the filesystem
 	FileData* parent = game->getParent();
 	if (getCursor() == game)                     // Select next element in list, or prev if none
 	{
 		std::vector<FileData*> siblings = parent->getChildrenListToDisplay();
 		auto gameIter = std::find(siblings.cbegin(), siblings.cend(), game);
-		int gamePos = (int)std::distance(siblings.cbegin(), gameIter);
+		unsigned int gamePos = (int)std::distance(siblings.cbegin(), gameIter);
 		if (gameIter != siblings.cend())
 		{
 			if ((gamePos + 1) < siblings.size())
 			{
 				setCursor(siblings.at(gamePos + 1));
-			} else if ((gamePos - 1) > 0) {
+			} else if (gamePos > 1) {
 				setCursor(siblings.at(gamePos - 1));
 			}
 		}
@@ -140,8 +150,10 @@ std::vector<HelpPrompt> BasicGameListView::getHelpPrompts()
 	prompts.push_back(HelpPrompt("up/down", "choose"));
 	prompts.push_back(HelpPrompt("a", "launch"));
 	prompts.push_back(HelpPrompt("b", "back"));
-	prompts.push_back(HelpPrompt("select", "options"));
-	prompts.push_back(HelpPrompt("x", "random"));
+	if(!UIModeController::getInstance()->isUIModeKid())
+		prompts.push_back(HelpPrompt("select", "options"));
+	if(mRoot->getSystem()->isGameSystem())
+		prompts.push_back(HelpPrompt("x", "random"));
 	if(mRoot->getSystem()->isGameSystem() && !UIModeController::getInstance()->isUIModeKid())
 	{
 		std::string prompt = CollectionSystemManager::get()->getEditingCollection();

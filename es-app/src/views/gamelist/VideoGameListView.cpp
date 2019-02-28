@@ -5,11 +5,11 @@
 #include "components/VideoPlayerComponent.h"
 #endif
 #include "components/VideoVlcComponent.h"
+#include "utils/FileSystemUtil.h"
 #include "views/ViewController.h"
 #ifdef _RPI_
 #include "Settings.h"
 #endif
-#include <boost/filesystem/operations.hpp>
 
 VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	BasicGameListView(window, root),
@@ -23,7 +23,8 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	mLblGenre(window), mLblPlayers(window), mLblLastPlayed(window), mLblPlayCount(window),
 
 	mRating(window), mReleaseDate(window), mDeveloper(window), mPublisher(window),
-	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window)
+	mGenre(window), mPlayers(window), mLastPlayed(window), mPlayCount(window),
+	mName(window)
 {
 	const float padding = 0.01f;
 
@@ -85,11 +86,18 @@ VideoGameListView::VideoGameListView(Window* window, FileData* root) :
 	addChild(&mPlayers);
 	mLblLastPlayed.setText("Last played: ");
 	addChild(&mLblLastPlayed);
-	mLastPlayed.setDisplayMode(DateTimeComponent::DISP_RELATIVE_TO_NOW);
+	mLastPlayed.setDisplayRelative(true);
 	addChild(&mLastPlayed);
 	mLblPlayCount.setText("Times played: ");
 	addChild(&mLblPlayCount);
 	addChild(&mPlayCount);
+
+	mName.setPosition(mSize.x(), mSize.y());
+	mName.setDefaultZIndex(40);
+	mName.setColor(0xAAAAAAFF);
+	mName.setFont(Font::get(FONT_SIZE_MEDIUM));
+	mName.setHorizontalAlignment(ALIGN_CENTER);
+	addChild(&mName);
 
 	mDescContainer.setPosition(mSize.x() * padding, mSize.y() * 0.65f);
 	mDescContainer.setSize(mSize.x() * (0.50f - 2*padding), mSize.y() - mDescContainer.getPosition().y());
@@ -118,6 +126,7 @@ void VideoGameListView::onThemeChanged(const std::shared_ptr<ThemeData>& theme)
 	mMarquee.applyTheme(theme, getName(), "md_marquee", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 	mImage.applyTheme(theme, getName(), "md_image", POSITION | ThemeFlags::SIZE | Z_INDEX | ROTATION);
 	mVideo->applyTheme(theme, getName(), "md_video", POSITION | ThemeFlags::SIZE | ThemeFlags::DELAY | Z_INDEX | ROTATION);
+	mName.applyTheme(theme, getName(), "md_name", ALL);
 
 	initMDLabels();
 	std::vector<TextComponent*> labels = getMDLabels();
@@ -224,7 +233,7 @@ void VideoGameListView::updateInfoPanel()
 {
 	FileData* file = (mList.size() == 0 || mList.isScrolling()) ? NULL : mList.getSelected();
 
-	boost::filesystem::remove(getTitlePath().c_str());
+	Utils::FileSystem::removeFile(getTitlePath());
 
 	bool fadingOut;
 	if(file == NULL)
@@ -237,37 +246,15 @@ void VideoGameListView::updateInfoPanel()
 		fadingOut = true;
 
 	}else{
-		std::string				video_path;
-		std::string				marquee_path;
-		std::string				thumbnail_path;
-		video_path 			= file->getVideoPath();
-		marquee_path 		= file->getMarqueePath();
-		thumbnail_path 		= file->getThumbnailPath();
-
-		if	(!video_path.empty() && (video_path[0] == '~'))
-		{
-			video_path.erase(0, 1);
-			video_path.insert(0, getHomePath());
-		}
-		if	(!marquee_path.empty() && (marquee_path[0] == '~'))
-		{
-			marquee_path.erase(0, 1);
-			marquee_path.insert(0, getHomePath());
-		}
-		if (!thumbnail_path.empty() && (thumbnail_path[0] == '~'))
-		{
-			thumbnail_path.erase(0, 1);
-			thumbnail_path.insert(0, getHomePath());
-		}
-		if (!mVideo->setVideo(video_path))
+		if (!mVideo->setVideo(file->getVideoPath()))
 		{
 			mVideo->setDefaultVideo();
 		}
 		mVideoPlaying = true;
 
-		mVideo->setImage(thumbnail_path);
-		mMarquee.setImage(marquee_path);
-		mImage.setImage(thumbnail_path);
+		mVideo->setImage(file->getThumbnailPath());
+		mMarquee.setImage(file->getMarqueePath());
+		mImage.setImage(file->getImagePath());
 
 		mDescription.setText(file->metadata.get("desc"));
 		mDescContainer.reset();
@@ -278,6 +265,7 @@ void VideoGameListView::updateInfoPanel()
 		mPublisher.setValue(file->metadata.get("publisher"));
 		mGenre.setValue(file->metadata.get("genre"));
 		mPlayers.setValue(file->metadata.get("players"));
+		mName.setValue(file->metadata.get("name"));
 
 		if(file->getType() == GAME)
 		{
@@ -293,6 +281,7 @@ void VideoGameListView::updateInfoPanel()
 	comps.push_back(mVideo);
 	comps.push_back(&mDescription);
 	comps.push_back(&mImage);
+	comps.push_back(&mName);
 	std::vector<TextComponent*> labels = getMDLabels();
 	comps.insert(comps.cend(), labels.cbegin(), labels.cend());
 

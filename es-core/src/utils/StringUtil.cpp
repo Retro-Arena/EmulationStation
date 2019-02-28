@@ -1,5 +1,8 @@
 #include "utils/StringUtil.h"
 
+#include <algorithm>
+#include <stdarg.h>
+
 namespace Utils
 {
 	namespace String
@@ -132,17 +135,164 @@ namespace Utils
 
 		} // moveCursor
 
-		std::string trim(const std::string& _path)
+		std::string toLower(const std::string& _string)
 		{
-			const size_t pathBegin = _path.find_first_not_of(" \t");
-			const size_t pathEnd   = _path.find_last_not_of(" \t");
+			std::string string;
 
-			if(pathBegin == std::string::npos)
+			for(size_t i = 0; i < _string.length(); ++i)
+				string += (char)tolower(_string[i]);
+
+			return string;
+
+		} // toLower
+
+		std::string toUpper(const std::string& _string)
+		{
+			std::string string;
+
+			for(size_t i = 0; i < _string.length(); ++i)
+				string += (char)toupper(_string[i]);
+
+			return string;
+
+		} // toUpper
+
+		std::string trim(const std::string& _string)
+		{
+			const size_t strBegin = _string.find_first_not_of(" \t");
+			const size_t strEnd   = _string.find_last_not_of(" \t");
+
+			if(strBegin == std::string::npos)
 				return "";
 
-			return _path.substr(pathBegin, pathEnd - pathBegin + 1);
+			return _string.substr(strBegin, strEnd - strBegin + 1);
 
 		} // trim
+
+		std::string replace(const std::string& _string, const std::string& _replace, const std::string& _with)
+		{
+			std::string string = _string;
+			size_t      pos;
+
+			while((pos = string.find(_replace)) != std::string::npos)
+				string = string.replace(pos, _replace.length(), _with.c_str(), _with.length());
+
+			return string;
+
+		} // replace
+
+		bool startsWith(const std::string& _string, const std::string& _start)
+		{
+			return (_string.find(_start) == 0);
+
+		} // startsWith
+
+		bool endsWith(const std::string& _string, const std::string& _end)
+		{
+			return (_string.find(_end) == (_string.size() - _end.size()));
+
+		} // endsWith
+
+		std::string removeParenthesis(const std::string& _string)
+		{
+			static const char remove[4] = { '(', ')', '[', ']' };
+			std::string       string = _string;
+			size_t            start;
+			size_t            end;
+			bool              done = false;
+
+			while(!done)
+			{
+				done = true;
+
+				for(int i = 0; i < sizeof(remove); i += 2)
+				{
+					end   = string.find_first_of(remove[i + 1]);
+					start = string.find_last_of( remove[i + 0], end);
+
+					if((start != std::string::npos) && (end != std::string::npos))
+					{
+						string.erase(start, end - start + 1);
+						done = false;
+					}
+				}
+			}
+
+			return trim(string);
+
+		} // removeParenthesis
+
+		stringVector commaStringToVector(const std::string& _string)
+		{
+			stringVector vector;
+			size_t       start = 0;
+			size_t       comma = _string.find(",");
+
+			while(comma != std::string::npos)
+			{
+				vector.push_back(_string.substr(start, comma - start));
+				start = comma + 1;
+				comma = _string.find(",", start);
+			}
+
+			vector.push_back(_string.substr(start));
+			std::sort(vector.begin(), vector.end());
+
+			return vector;
+
+		} // commaStringToVector
+
+		std::string vectorToCommaString(stringVector _vector)
+		{
+			std::string string;
+
+			std::sort(_vector.begin(), _vector.end());
+
+			for(stringVector::const_iterator it = _vector.cbegin(); it != _vector.cend(); ++it)
+				string += (string.length() ? "," : "") + (*it);
+
+			return string;
+
+		} // vectorToCommaString
+
+		std::string format(const char* _format, ...)
+		{
+			va_list	args;
+			va_list copy;
+
+			va_start(args, _format);
+
+			va_copy(copy, args);
+			const int length = vsnprintf(nullptr, 0, _format, copy);
+			va_end(copy);
+
+			char* buffer = new char[length + 1];
+			va_copy(copy, args);
+			vsnprintf(buffer, length + 1, _format, copy);
+			va_end(copy);
+
+			va_end(args);
+
+			std::string out(buffer);
+			delete buffer;
+
+			return out;
+
+		} // format
+
+		// Simple XOR scrambling of a string, with an accompanying key
+		std::string scramble(const std::string& _input, const std::string& key)
+		{
+			std::string buffer = _input;
+
+			for (size_t i = 0; i < _input.size(); ++i) 
+			{               
+				buffer[i] = _input[i] ^ key[i];
+			}
+
+			return buffer;
+
+		} // scramble
 
 	} // String::
 

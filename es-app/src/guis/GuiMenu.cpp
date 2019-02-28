@@ -16,6 +16,7 @@
 #include "SystemData.h"
 #include "VolumeControl.h"
 #include <SDL_events.h>
+#include <algorithm>
 
 GuiMenu::GuiMenu(Window* window) : GuiComponent(window), mMenu(window, "MAIN MENU"), mVersion(window)
 {
@@ -39,8 +40,7 @@ GuiMenu::GuiMenu(Window* window) : GuiComponent(window), mMenu(window, "MAIN MEN
 	if (isFullUI)
 		addEntry("CONFIGURE INPUT", 0x777777FF, true, [this] { openConfigInput(); });
 
-	if (!(UIModeController::getInstance()->isUIModeKid() && Settings::getInstance()->getBool("hideQuitMenuOnKidUI")))
-		addEntry("QUIT", 0x777777FF, true, [this] {openQuitMenu(); });
+	addEntry("QUIT", 0x777777FF, true, [this] {openQuitMenu(); });
 
 	addChild(&mMenu);
 	addVersionInfo();
@@ -55,6 +55,8 @@ void GuiMenu::openScraperSettings()
 	// scrape from
 	auto scraper_list = std::make_shared< OptionListComponent< std::string > >(mWindow, "SCRAPE FROM", false);
 	std::vector<std::string> scrapers = getScraperList();
+
+	// Select either the first entry of the one read from the settings, just in case the scraper from settings has vanished.
 	for(auto it = scrapers.cbegin(); it != scrapers.cend(); it++)
 		scraper_list->add(*it, *it, *it == Settings::getInstance()->getString("Scraper"));
 
@@ -95,13 +97,49 @@ void GuiMenu::openSoundSettings()
 
 	if (UIModeController::getInstance()->isUIModeFull())
 	{
-#ifdef _RPI_
+#if defined(__linux__)
+		// audio card
+		auto audio_card = std::make_shared< OptionListComponent<std::string> >(mWindow, "AUDIO CARD", false);
+		std::vector<std::string> audio_cards;
+	#ifdef _RPI_
+		// RPi Specific  Audio Cards
+		audio_cards.push_back("local");
+		audio_cards.push_back("hdmi");
+		audio_cards.push_back("both");
+	#endif
+		audio_cards.push_back("default");
+		audio_cards.push_back("sysdefault");
+		audio_cards.push_back("dmix");
+		audio_cards.push_back("hw");
+		audio_cards.push_back("plughw");
+		audio_cards.push_back("null");
+		if (Settings::getInstance()->getString("AudioCard") != "") {
+			if(std::find(audio_cards.begin(), audio_cards.end(), Settings::getInstance()->getString("AudioCard")) == audio_cards.end()) {
+				audio_cards.push_back(Settings::getInstance()->getString("AudioCard"));
+			}
+		}
+		for(auto ac = audio_cards.cbegin(); ac != audio_cards.cend(); ac++)
+			audio_card->add(*ac, *ac, Settings::getInstance()->getString("AudioCard") == *ac);
+		s->addWithLabel("AUDIO CARD", audio_card);
+		s->addSaveFunc([audio_card] {
+			Settings::getInstance()->setString("AudioCard", audio_card->getSelected());
+			VolumeControl::getInstance()->deinit();
+			VolumeControl::getInstance()->init();
+		});
+
 		// volume control device
 		auto vol_dev = std::make_shared< OptionListComponent<std::string> >(mWindow, "AUDIO DEVICE", false);
 		std::vector<std::string> transitions;
 		transitions.push_back("PCM");
 		transitions.push_back("Speaker");
 		transitions.push_back("Master");
+		transitions.push_back("Digital");
+		transitions.push_back("Analogue");
+		if (Settings::getInstance()->getString("AudioDevice") != "") {
+			if(std::find(transitions.begin(), transitions.end(), Settings::getInstance()->getString("AudioDevice")) == transitions.end()) {
+				transitions.push_back(Settings::getInstance()->getString("AudioDevice"));
+			}
+		}
 		for(auto it = transitions.cbegin(); it != transitions.cend(); it++)
 			vol_dev->add(*it, *it, Settings::getInstance()->getString("AudioDevice") == *it);
 		s->addWithLabel("AUDIO DEVICE", vol_dev);
@@ -135,14 +173,19 @@ void GuiMenu::openSoundSettings()
 #ifdef _RPI_
 		// OMX player Audio Device
 		auto omx_audio_dev = std::make_shared< OptionListComponent<std::string> >(mWindow, "OMX PLAYER AUDIO DEVICE", false);
-		std::vector<std::string> devices;
-		devices.push_back("local");
-		devices.push_back("hdmi");
-		devices.push_back("both");
-		// USB audio
-		devices.push_back("alsa:hw:0,0");
-		devices.push_back("alsa:hw:1,0");
-		for (auto it = devices.cbegin(); it != devices.cend(); it++)
+		std::vector<std::string> omx_cards;
+		// RPi Specific  Audio Cards
+		omx_cards.push_back("local");
+		omx_cards.push_back("hdmi");
+		omx_cards.push_back("both");
+		omx_cards.push_back("alsa:hw:0,0");
+		omx_cards.push_back("alsa:hw:1,0");
+		if (Settings::getInstance()->getString("OMXAudioDev") != "") {
+			if (std::find(omx_cards.begin(), omx_cards.end(), Settings::getInstance()->getString("OMXAudioDev")) == omx_cards.end()) {
+				omx_cards.push_back(Settings::getInstance()->getString("OMXAudioDev"));
+			}
+		}
+		for (auto it = omx_cards.cbegin(); it != omx_cards.cend(); it++)
 			omx_audio_dev->add(*it, *it, Settings::getInstance()->getString("OMXAudioDev") == *it);
 		s->addWithLabel("OMX PLAYER AUDIO DEVICE", omx_audio_dev);
 		s->addSaveFunc([omx_audio_dev] {
@@ -261,6 +304,7 @@ void GuiMenu::openUISettings()
 			if(needReload)
 			{
 				CollectionSystemManager::get()->updateSystemsList();
+				ViewController::get()->goToStart();
 				ViewController::get()->reloadAll(); // TODO - replace this with some sort of signal-based implementation
 			}
 		});
@@ -273,6 +317,8 @@ void GuiMenu::openUISettings()
 	styles.push_back("basic");
 	styles.push_back("detailed");
 	styles.push_back("video");
+	styles.push_back("grid");
+
 	for (auto it = styles.cbegin(); it != styles.cend(); it++)
 		gamelist_style->add(*it, *it, Settings::getInstance()->getString("GamelistViewStyle") == *it);
 	s->addWithLabel("GAMELIST VIEW STYLE", gamelist_style);
@@ -305,6 +351,16 @@ void GuiMenu::openUISettings()
 	show_help->setState(Settings::getInstance()->getBool("ShowHelpPrompts"));
 	s->addWithLabel("ON-SCREEN HELP", show_help);
 	s->addSaveFunc([show_help] { Settings::getInstance()->setBool("ShowHelpPrompts", show_help->getState()); });
+
+	// enable filters (ForceDisableFilters)
+	auto enable_filter = std::make_shared<SwitchComponent>(mWindow);
+	enable_filter->setState(!Settings::getInstance()->getBool("ForceDisableFilters"));
+	s->addWithLabel("ENABLE FILTERS", enable_filter);
+	s->addSaveFunc([enable_filter] { 
+		bool filter_is_enabled = !Settings::getInstance()->getBool("ForceDisableFilters");
+		Settings::getInstance()->setBool("ForceDisableFilters", !enable_filter->getState()); 
+		if (enable_filter->getState() != filter_is_enabled) ViewController::get()->ReloadAndGoToStart();
+	});
 
 	mWindow->pushGui(s);
 
@@ -351,13 +407,16 @@ void GuiMenu::openOtherSettings()
 	s->addWithLabel("PARSE GAMESLISTS ONLY", parse_gamelists);
 	s->addSaveFunc([parse_gamelists] { Settings::getInstance()->setBool("ParseGamelistOnly", parse_gamelists->getState()); });
 
-#ifndef WIN32
+	auto local_art = std::make_shared<SwitchComponent>(mWindow);
+	local_art->setState(Settings::getInstance()->getBool("LocalArt"));
+	s->addWithLabel("SEARCH FOR LOCAL ART", local_art);
+	s->addSaveFunc([local_art] { Settings::getInstance()->setBool("LocalArt", local_art->getState()); });
+
 	// hidden files
 	auto hidden_files = std::make_shared<SwitchComponent>(mWindow);
 	hidden_files->setState(Settings::getInstance()->getBool("ShowHiddenFiles"));
 	s->addWithLabel("SHOW HIDDEN FILES", hidden_files);
 	s->addSaveFunc([hidden_files] { Settings::getInstance()->setBool("ShowHiddenFiles", hidden_files->getState()); });
-#endif
 
 #ifdef _RPI_
 	// Video Player - VideoOmxPlayer
@@ -464,9 +523,11 @@ void GuiMenu::openQuitMenu()
 
 void GuiMenu::addVersionInfo()
 {
+	std::string  buildDate = (Settings::getInstance()->getBool("Debug") ? std::string( "   (" + Utils::String::toUpper(PROGRAM_BUILT_STRING) + ")") : (""));
+
 	mVersion.setFont(Font::get(FONT_SIZE_SMALL));
 	mVersion.setColor(0x5E5E5EFF);
-	mVersion.setText("EMULATIONSTATION V" + strToUpper(PROGRAM_VERSION_STRING));
+	mVersion.setText("EMULATIONSTATION V" + Utils::String::toUpper(PROGRAM_VERSION_STRING) + buildDate);
 	mVersion.setHorizontalAlignment(ALIGN_CENTER);
 	addChild(&mVersion);
 }

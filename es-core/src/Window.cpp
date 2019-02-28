@@ -7,6 +7,7 @@
 #include "InputManager.h"
 #include "Log.h"
 #include "Renderer.h"
+#include <algorithm>
 #include <iomanip>
 
 Window::Window() : mNormalizeNextUpdate(false), mFrameTimeElapsed(0), mFrameCountElapsed(0), mAverageDeltaTime(10),
@@ -65,9 +66,9 @@ GuiComponent* Window::peekGui()
 	return mGuiStack.back();
 }
 
-bool Window::init(unsigned int width, unsigned int height)
+bool Window::init()
 {
-	if(!Renderer::init(width, height))
+	if(!Renderer::init())
 	{
 		LOG(LogError) << "Renderer failed to initialize!";
 		return false;
@@ -119,9 +120,9 @@ void Window::input(InputConfig* config, Input input)
 		if(mScreenSaver->isScreenSaverActive() && Settings::getInstance()->getBool("ScreenSaverControls") &&
 		   (Settings::getInstance()->getString("ScreenSaverBehavior") == "random video"))
 		{
-			if(mScreenSaver->getCurrentGame() != NULL && (config->isMappedTo("right", input) || config->isMappedTo("start", input) || config->isMappedTo("select", input)))
+			if(mScreenSaver->getCurrentGame() != NULL && (config->isMappedLike("right", input) || config->isMappedTo("start", input) || config->isMappedTo("select", input)))
 			{
-				if(config->isMappedTo("right", input) || config->isMappedTo("select", input))
+				if(config->isMappedLike("right", input) || config->isMappedTo("select", input))
 				{
 					if (input.value != 0) {
 						// handle screensaver control
@@ -168,6 +169,11 @@ void Window::input(InputConfig* config, Input input)
 		// toggle TextComponent debug view with Ctrl-T
 		Settings::getInstance()->setBool("DebugText", !Settings::getInstance()->getBool("DebugText"));
 	}
+	else if(config->getDeviceId() == DEVICE_KEYBOARD && input.value && input.id == SDLK_i && SDL_GetModState() & KMOD_LCTRL && Settings::getInstance()->getBool("Debug"))
+	{
+		// toggle TextComponent debug view with Ctrl-I
+		Settings::getInstance()->setBool("DebugImage", !Settings::getInstance()->getBool("DebugImage"));
+	}
 	else
 	{
 		if (peekGui())
@@ -203,7 +209,7 @@ void Window::update(int deltaTime)
 			// vram
 			float textureVramUsageMb = TextureResource::getTotalMemUsage() / 1000.0f / 1000.0f;
 			float textureTotalUsageMb = TextureResource::getTotalTextureSize() / 1000.0f / 1000.0f;
-			float fontVramUsageMb = Font::getTotalMemUsage() / 1000.0f / 1000.0f;;
+			float fontVramUsageMb = Font::getTotalMemUsage() / 1000.0f / 1000.0f;
 
 			ss << "\nFont VRAM: " << fontVramUsageMb << " Tex VRAM: " << textureVramUsageMb <<
 				  " Tex Max: " << textureTotalUsageMb;
@@ -292,7 +298,7 @@ void Window::setAllowSleep(bool sleep)
 	mAllowSleep = sleep;
 }
 
-void Window::renderLoadingScreen()
+void Window::renderLoadingScreen(std::string text)
 {
 	Transform4x4f trans = Transform4x4f::Identity();
 	Renderer::setMatrix(trans);
@@ -305,11 +311,13 @@ void Window::renderLoadingScreen()
 	splash.render(trans);
 
 	auto& font = mDefaultFonts.at(1);
-        TextCache* cache = font->buildTextCache("- LOADING -\nDeveloped by The Retro Arena\nNOT FOR RESALE", Vector2f(0, 0), 0x656565FF, 0.1f, ALIGN_CENTER, 1.1f);
-        trans = trans.translate(Vector3f(Math::round((Renderer::getScreenWidth() * 1.0f) / 2.0f),
-                Math::round(Renderer::getScreenHeight() * 0.7f), 0.0f));
-        Renderer::setMatrix(trans);
-        font->renderTextCache(cache);
+	TextCache* cache = font->buildTextCache(text, 0, 0, 0x656565FF);
+
+	float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
+	float y = Math::round(Renderer::getScreenHeight() * 0.835f);
+	trans = trans.translate(Vector3f(x, y, 0.0f));
+	Renderer::setMatrix(trans);
+	font->renderTextCache(cache);
 	delete cache;
 
 	Renderer::swapBuffers();
