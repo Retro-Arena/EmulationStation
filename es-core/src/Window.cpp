@@ -315,7 +315,7 @@ void Window::renderLoadingScreen(std::string text, float percent, unsigned char 
 		float y = Renderer::getScreenHeight() - (Renderer::getScreenHeight() * 3 * baseHeight);
 
 		Renderer::drawRect(x, y, w, h, 0x25252500 | opacity, 0x25252500 | opacity);
-		Renderer::drawRect(x, y, (w*percent), h, 0x006C9E00 | opacity, 0x006C9E00 | opacity); // 0xFFFFFFFF
+		Renderer::drawRect(x, y, (w*percent), h, 0x33FF0000 | opacity, 0x33FF0000 | opacity); // 0xFFFFFFFF
 	}
 
 	ImageComponent splash(this, true);
