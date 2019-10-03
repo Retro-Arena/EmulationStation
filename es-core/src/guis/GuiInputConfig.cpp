@@ -50,8 +50,8 @@ static const InputConfigStructure GUI_INPUT_CONFIG_LIST[inputCount] =
 
 #define HOLD_TO_SKIP_MS 1000
 
-GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfigureAll, const std::function<void()>& okCallback) : GuiComponent(window), 
-	mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 7)), 
+GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfigureAll, const std::function<void()>& okCallback) : GuiComponent(window),
+	mBackground(window, ":/frame.png"), mGrid(window, Vector2i(1, 7)),
 	mTargetConfig(target), mHoldingInput(false), mBusyAnim(window)
 {
 	LOG(LogInfo) << "Configuring device " << target->getDeviceId() << " (" << target->getDeviceName() << ").";
@@ -70,7 +70,7 @@ GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfi
 
 	mTitle = std::make_shared<TextComponent>(mWindow, "CONFIGURING", Font::get(FONT_SIZE_LARGE), 0x555555FF, ALIGN_CENTER);
 	mGrid.setEntry(mTitle, Vector2i(0, 1), false, true);
-	
+
 	std::stringstream ss;
 	if(target->getDeviceId() == DEVICE_KEYBOARD)
 		ss << "KEYBOARD";
@@ -91,7 +91,7 @@ GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfi
 	for(int i = 0; i < inputCount; i++)
 	{
 		ComponentListRow row;
-		
+
 		// icon
 		auto icon = std::make_shared<ImageComponent>(mWindow);
 		icon->setImage(GUI_INPUT_CONFIG_LIST[i].icon);
@@ -128,10 +128,14 @@ GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfi
 					setPress(mapping);
 					return true;
 				}
-				
+
 				// we're not configuring and they didn't press A to start, so ignore this
 				return false;
 			}
+
+			// apply filtering for quirks related to trigger mapping
+			if(filterTrigger(input, config, i))
+				return false;
 
 			// we are configuring
 			if(input.value != 0)
@@ -181,7 +185,7 @@ GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfi
 		InputManager::getInstance()->writeDeviceConfig(mTargetConfig); // save
 		if(okCallback)
 			okCallback();
-		delete this; 
+		delete this;
 	};
 	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, "OK", "ok", [this, okFunction] {
 		// check if the hotkey enable button is set. if not prompt the user to use select or nothing.
@@ -259,7 +263,7 @@ void GuiInputConfig::update(int deltaTime)
 	}
 }
 
-// move cursor to the next thing if we're configuring all, 
+// move cursor to the next thing if we're configuring all,
 // or come out of "configure mode" if we were only configuring one row
 void GuiInputConfig::rowDone()
 {
@@ -318,7 +322,7 @@ bool GuiInputConfig::assign(Input input, int inputId)
 	}
 
 	setAssignedTo(mMappings.at(inputId), input);
-	
+
 	input.configured = true;
 	mTargetConfig->mapInput(GUI_INPUT_CONFIG_LIST[inputId].name, input);
 
@@ -330,4 +334,52 @@ bool GuiInputConfig::assign(Input input, int inputId)
 void GuiInputConfig::clearAssignment(int inputId)
 {
 	mTargetConfig->unmapInput(GUI_INPUT_CONFIG_LIST[inputId].name);
+}
+
+bool GuiInputConfig::filterTrigger(Input input, InputConfig* config, int inputId)
+{
+#if defined(__linux__)
+	// on Linux, some gamepads return both an analog axis and a digital button for the trigger;
+	// we want the analog axis only, so this function removes the button press event
+
+	if((
+	  // match PlayStation joystick with 6 axes only
+	  strstr(config->getDeviceName().c_str(), "PLAYSTATION") != NULL
+	  || strstr(config->getDeviceName().c_str(), "PS3 Ga") != NULL
+	  || strstr(config->getDeviceName().c_str(), "PS(R) Ga") != NULL
+	  // BigBen kid's PS3 gamepad 146b:0902, matched on SDL GUID because its name "Bigben Interactive Bigben Game Pad" may be too generic
+	  || strcmp(config->getDeviceGUIDString().c_str(), "030000006b1400000209000011010000") == 0
+	  ) && InputManager::getInstance()->getAxisCountByDevice(config->getDeviceId()) == 6)
+	{
+		// digital triggers are unwanted
+		if(input.type == TYPE_BUTTON && (input.id == 6 || input.id == 7))
+		{
+			mHoldingInput = false;
+			return true;
+		}
+	}
+
+	// ignore negative pole for axes 2/5 only when triggers are being configured
+	if(input.type == TYPE_AXIS && (input.id == 2 || input.id == 5))
+	{
+		if(strstr(GUI_INPUT_CONFIG_LIST[inputId].name, "Trigger") != NULL)
+		{
+			if(input.value == 1)
+				mSkipAxis = true;
+			else if(input.value == -1)
+				return true;
+		}
+		else if(mSkipAxis)
+		{
+			mSkipAxis = false;
+			return true;
+		}
+	}
+#else
+	(void)input;
+	(void)config;
+	(void)inputId;
+#endif
+
+	return false;
 }

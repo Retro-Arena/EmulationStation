@@ -1,7 +1,5 @@
 #include "components/ComponentList.h"
 
-#include "Renderer.h"
-
 #define TOTAL_HORIZONTAL_PADDING_PX 20
 
 ComponentList::ComponentList(Window* window) : IList<ComponentListRow, void*>(window, LIST_SCROLL_STYLE_SLOW, LIST_NEVER_LOOP)
@@ -75,10 +73,10 @@ bool ComponentList::input(InputConfig* config, Input input)
 	}
 
 	// input handler didn't consume the input - try to scroll
-	if(config->isMappedTo("up", input))
+	if(config->isMappedLike("up", input))
 	{
 		return listInput(input.value != 0 ? -1 : 0);
-	}else if(config->isMappedTo("down", input))
+	}else if(config->isMappedLike("down", input))
 	{
 		return listInput(input.value != 0 ? 1 : 0);
 
@@ -163,7 +161,6 @@ void ComponentList::render(const Transform4x4f& parentTrans)
 		return;
 
 	Transform4x4f trans = parentTrans * getTransform();
-	trans.round();
 
 	// clip everything to be inside our bounds
 	Vector3f dim(mSize.x(), mSize.y(), 0);
@@ -204,14 +201,12 @@ void ComponentList::render(const Transform4x4f& parentTrans)
 		// (1 - dst) + 0x77
 
 		const float selectedRowHeight = getRowHeight(mEntries.at(mCursor).data);
-		Renderer::drawRect(0.0f, mSelectorBarOffset, mSize.x(), selectedRowHeight, 0xFFFFFFFF,
-			GL_ONE_MINUS_DST_COLOR, GL_ZERO);
-		Renderer::drawRect(0.0f, mSelectorBarOffset, mSize.x(), selectedRowHeight, 0x777777FF,
-			GL_ONE, GL_ONE);
+		Renderer::drawRect(0.0f, mSelectorBarOffset, mSize.x(), selectedRowHeight, 0xFFFFFFFF, 0xFFFFFFFF, false, Renderer::Blend::ONE_MINUS_DST_COLOR, Renderer::Blend::ZERO);
+		Renderer::drawRect(0.0f, mSelectorBarOffset, mSize.x(), selectedRowHeight, 0x777777FF, 0x777777FF, false, Renderer::Blend::ONE,                 Renderer::Blend::ONE);
 
 		// hack to draw 2px dark on left/right of the bar
-		Renderer::drawRect(0.0f, mSelectorBarOffset, 2.0f, selectedRowHeight, 0x878787FF);
-		Renderer::drawRect(mSize.x() - 2.0f, mSelectorBarOffset, 2.0f, selectedRowHeight, 0x878787FF);
+		Renderer::drawRect(0.0f, mSelectorBarOffset, 2.0f, selectedRowHeight, 0x878787FF, 0x878787FF);
+		Renderer::drawRect(mSize.x() - 2.0f, mSelectorBarOffset, 2.0f, selectedRowHeight, 0x878787FF, 0x878787FF);
 
 		for(auto it = drawAfterCursor.cbegin(); it != drawAfterCursor.cend(); it++)
 			(*it)->render(trans);
@@ -225,10 +220,10 @@ void ComponentList::render(const Transform4x4f& parentTrans)
 	float y = 0;
 	for(unsigned int i = 0; i < mEntries.size(); i++)
 	{
-		Renderer::drawRect(0.0f, y, mSize.x(), 1.0f, 0xC6C7C6FF);
+		Renderer::drawRect(0.0f, y, mSize.x(), 1.0f, 0xC6C7C6FF, 0xC6C7C6FF);
 		y += getRowHeight(mEntries.at(i).data);
 	}
-	Renderer::drawRect(0.0f, y, mSize.x(), 1.0f, 0xC6C7C6FF);
+	Renderer::drawRect(0.0f, y, mSize.x(), 1.0f, 0xC6C7C6FF, 0xC6C7C6FF);
 
 	Renderer::popClipRect();
 }

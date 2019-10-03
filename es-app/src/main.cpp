@@ -31,7 +31,23 @@ bool scrape_cmdline = false;
 
 bool parseArgs(int argc, char* argv[])
 {
-	Settings::getInstance()->setString("ExePath", argv[0]);
+	Utils::FileSystem::setExePath(argv[0]);
+
+	// We need to process --home before any call to Settings::getInstance(), because settings are loaded from homepath
+	for(int i = 1; i < argc; i++)
+	{
+		if(strcmp(argv[i], "--home") == 0)
+		{
+			if(i >= argc - 1)
+			{
+				std::cerr << "Invalid home path supplied.";
+				return false;
+			}
+
+			Utils::FileSystem::setHomePath(argv[i + 1]);
+			break;
+		}
+	}
 
 	for(int i = 1; i < argc; i++)
 	{
@@ -108,6 +124,9 @@ bool parseArgs(int argc, char* argv[])
 			Settings::getInstance()->setBool("Debug", true);
 			Settings::getInstance()->setBool("HideConsole", false);
 			Log::setReportingLevel(LogDebug);
+		}else if(strcmp(argv[i], "--fullscreen-borderless") == 0)
+		{
+			Settings::getInstance()->setBool("FullscreenBorderless", true);
 		}else if(strcmp(argv[i], "--windowed") == 0)
 		{
 			Settings::getInstance()->setBool("Windowed", true);
@@ -165,6 +184,7 @@ bool parseArgs(int argc, char* argv[])
 				"--force-kid		Force the UI mode to be Kid\n"
 				"--force-kiosk		Force the UI mode to be Kiosk\n"
 				"--force-disable-filters		Force the UI to ignore applied filters in gamelist\n"
+				"--home [path]		Directory to use as home path\n"
 				"--help, -h			summon a sentient, angry tuba\n\n"
 				"More information available in README.md.\n";
 			return false; //exit after printing help
@@ -292,6 +312,9 @@ int main(int argc, char* argv[])
 	MameNames::init();
 	window.pushGui(ViewController::get());
 
+	bool splashScreen = Settings::getInstance()->getBool("SplashScreen");
+	bool splashScreenProgress = Settings::getInstance()->getBool("SplashScreenProgress");
+
 	if(!scrape_cmdline)
 	{
 		if(!window.init())
@@ -300,11 +323,13 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		std::string glExts = (const char*)glGetString(GL_EXTENSIONS);
-		LOG(LogInfo) << "Checking available OpenGL extensions...";
-		LOG(LogInfo) << " ARB_texture_non_power_of_two: " << (glExts.find("ARB_texture_non_power_of_two") != std::string::npos ? "ok" : "MISSING");
-		if(Settings::getInstance()->getBool("SplashScreen"))
-			window.renderLoadingScreen();
+		if(splashScreen)
+		{
+			std::string progressText = "Loading...";
+			if (splashScreenProgress)
+				progressText = "Loading system config...";
+			window.renderLoadingScreen(progressText);
+		}
 	}
 
 	const char* errorMsg = NULL;
@@ -341,6 +366,9 @@ int main(int argc, char* argv[])
 	// preload what we can right away instead of waiting for the user to select it
 	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();
+
+	if(splashScreen && splashScreenProgress)
+		window.renderLoadingScreen("Done.");
 
 	//choose which GUI to open depending on if an input configuration already exists
 	if(errorMsg == NULL)
@@ -425,6 +453,8 @@ int main(int argc, char* argv[])
 #ifdef FREEIMAGE_LIB
 	FreeImage_DeInitialise();
 #endif
+
+	processQuitMode();
 
 	LOG(LogInfo) << "EmulationStation cleanly shutting down.";
 

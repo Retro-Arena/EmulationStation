@@ -5,7 +5,6 @@
 #include "views/UIModeController.h"
 #include "views/ViewController.h"
 #include "Log.h"
-#include "Renderer.h"
 #include "Settings.h"
 #include "SystemData.h"
 #include "Window.h"
@@ -150,12 +149,12 @@ bool SystemView::input(InputConfig* config, Input input)
 		{
 		case VERTICAL:
 		case VERTICAL_WHEEL:
-			if (config->isMappedTo("up", input))
+			if (config->isMappedLike("up", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedTo("down", input))
+			if (config->isMappedLike("down", input))
 			{
 				listInput(1);
 				return true;
@@ -164,12 +163,12 @@ bool SystemView::input(InputConfig* config, Input input)
 		case HORIZONTAL:
 		case HORIZONTAL_WHEEL:
 		default:
-			if (config->isMappedTo("left", input))
+			if (config->isMappedLike("left", input))
 			{
 				listInput(-1);
 				return true;
 			}
-			if (config->isMappedTo("right", input))
+			if (config->isMappedLike("right", input))
 			{
 				listInput(1);
 				return true;
@@ -191,10 +190,10 @@ bool SystemView::input(InputConfig* config, Input input)
 			return true;
 		}
 	}else{
-		if(config->isMappedTo("left", input) ||
-			config->isMappedTo("right", input) ||
-			config->isMappedTo("up", input) ||
-			config->isMappedTo("down", input))
+		if(config->isMappedLike("left", input) ||
+			config->isMappedLike("right", input) ||
+			config->isMappedLike("up", input) ||
+			config->isMappedLike("down", input))
 			listInput(0);
 		if(!UIModeController::getInstance()->isUIModeKid() && config->isMappedTo("select", input) && Settings::getInstance()->getBool("ScreenSaverControls"))
 		{
@@ -435,7 +434,7 @@ void SystemView::renderCarousel(const Transform4x4f& trans)
 	Renderer::pushClipRect(Vector2i((int)clipPos.x(), (int)clipPos.y()), Vector2i((int)mCarousel.size.x(), (int)mCarousel.size.y()));
 
 	Renderer::setMatrix(carouselTrans);
-	Renderer::drawRect(0.0, 0.0, mCarousel.size.x(), mCarousel.size.y(), mCarousel.color);
+	Renderer::drawRect(0.0f, 0.0f, mCarousel.size.x(), mCarousel.size.y(), mCarousel.color, mCarousel.colorEnd, mCarousel.colorGradientHorizontal);
 
 	// draw logos
 	Vector2f logoSpacing(0.0, 0.0); // NB: logoSpacing will include the size of the logo itself as well!
@@ -585,8 +584,9 @@ void SystemView::renderFade(const Transform4x4f& trans)
 	// fade extras if necessary
 	if (mExtrasFadeOpacity)
 	{
+		unsigned int fadeColor = 0x00000000 | (unsigned char)(mExtrasFadeOpacity * 255);
 		Renderer::setMatrix(trans);
-		Renderer::drawRect(0.0f, 0.0f, mSize.x(), mSize.y(), 0x00000000 | (unsigned char)(mExtrasFadeOpacity * 255));
+		Renderer::drawRect(0.0f, 0.0f, mSize.x(), mSize.y(), fadeColor, fadeColor);
 	}
 }
 
@@ -603,6 +603,8 @@ void  SystemView::getDefaultElements(void)
 	mCarousel.origin.x() = 0.0f;
 	mCarousel.origin.y() = 0.0f;
 	mCarousel.color = 0xFFFFFFD8;
+	mCarousel.colorEnd = 0xFFFFFFD8;
+	mCarousel.colorGradientHorizontal = true;
 	mCarousel.logoScale = 1.2f;
 	mCarousel.logoRotation = 7.5;
 	mCarousel.logoRotationOrigin.x() = -5;
@@ -643,7 +645,14 @@ void SystemView::getCarouselFromTheme(const ThemeData::ThemeElement* elem)
 	if (elem->has("origin"))
 		mCarousel.origin = elem->get<Vector2f>("origin");
 	if (elem->has("color"))
+	{
 		mCarousel.color = elem->get<unsigned int>("color");
+		mCarousel.colorEnd = mCarousel.color;
+	}
+	if (elem->has("colorEnd"))
+		mCarousel.colorEnd = elem->get<unsigned int>("colorEnd");
+	if (elem->has("gradientType"))
+		mCarousel.colorGradientHorizontal = !(elem->get<std::string>("gradientType").compare("horizontal"));
 	if (elem->has("logoScale"))
 		mCarousel.logoScale = elem->get<float>("logoScale");
 	if (elem->has("logoSize"))

@@ -41,6 +41,7 @@ namespace ThemeFlags
 		DELAY = 4096,
 		Z_INDEX = 8192,
 		ROTATION = 16384,
+		VISIBLE = 32768,
 		ALL = 0xFFFFFFFF
 	};
 }
@@ -54,7 +55,7 @@ public:
 
 	template<typename T>
 	friend ThemeException& operator<<(ThemeException& e, T msg);
-	
+
 	inline void setFiles(const std::deque<std::string>& deque)
 	{
 		*this << "from theme \"" << deque.front() << "\"\n";

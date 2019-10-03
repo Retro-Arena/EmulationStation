@@ -65,7 +65,7 @@ void ViewController::goToStart()
 
 void ViewController::ReloadAndGoToStart()
 {
-	mWindow->renderLoadingScreen();
+	mWindow->renderLoadingScreen("Loading...");
 	ViewController::get()->reloadAll();
 	ViewController::get()->goToStart();
 }
@@ -422,15 +422,27 @@ void ViewController::render(const Transform4x4f& parentTrans)
 	// fade out
 	if(mFadeOpacity)
 	{
+		unsigned int fadeColor = 0x00000000 | (unsigned char)(mFadeOpacity * 255);
 		Renderer::setMatrix(parentTrans);
-		Renderer::drawRect(0, 0, Renderer::getScreenWidth(), Renderer::getScreenHeight(), 0x00000000 | (unsigned char)(mFadeOpacity * 255));
+		Renderer::drawRect(0.0f, 0.0f, Renderer::getScreenWidth(), Renderer::getScreenHeight(), fadeColor, fadeColor);
 	}
 }
 
 void ViewController::preload()
 {
+	uint32_t i = 0;
 	for(auto it = SystemData::sSystemVector.cbegin(); it != SystemData::sSystemVector.cend(); it++)
 	{
+		if(Settings::getInstance()->getBool("SplashScreen") &&
+			Settings::getInstance()->getBool("SplashScreenProgress"))
+		{
+			i++;
+			char buffer[100];
+			sprintf (buffer, "Loading '%s' (%d/%d)",
+				(*it)->getFullName().c_str(), i, (int)SystemData::sSystemVector.size());
+			mWindow->renderLoadingScreen(std::string(buffer));
+		}
+
 		(*it)->getIndex()->resetFilters();
 		getGameListView(*it);
 	}

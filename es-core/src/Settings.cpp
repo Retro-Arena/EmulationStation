@@ -2,6 +2,7 @@
 
 #include "utils/FileSystemUtil.h"
 #include "Log.h"
+#include "Scripting.h"
 #include "platform.h"
 #include <pugixml/src/pugixml.hpp>
 #include <algorithm>
@@ -18,12 +19,13 @@ std::vector<const char*> settings_dont_save {
 	{ "DebugImage" },
 	{ "ForceKid" },
 	{ "ForceKiosk" },
-	{ "ForceDisableFilters" },
 	{ "IgnoreGamelist" },
 	{ "HideConsole" },
 	{ "ShowExit" },
 	{ "SplashScreen" },
+	{ "SplashScreenProgress" },
 	{ "VSync" },
+	{ "FullscreenBorderless" },
 	{ "Windowed" },
 	{ "WindowWidth" },
 	{ "WindowHeight" },
@@ -31,8 +33,7 @@ std::vector<const char*> settings_dont_save {
 	{ "ScreenHeight" },
 	{ "ScreenOffsetX" },
 	{ "ScreenOffsetY" },
-	{ "ScreenRotate" },
-	{ "ExePath" }
+	{ "ScreenRotate" }
 };
 
 Settings::Settings()
@@ -59,8 +60,10 @@ void Settings::setDefaults()
 	mBoolMap["ShowHiddenFiles"] = false;
 	mBoolMap["DrawFramerate"] = false;
 	mBoolMap["ShowExit"] = true;
+	mBoolMap["FullscreenBorderless"] = false;
 	mBoolMap["Windowed"] = false;
 	mBoolMap["SplashScreen"] = true;
+	mBoolMap["SplashScreenProgress"] = true;
 	mStringMap["StartupSystem"] = "";
 
 	mBoolMap["VSync"] = true;
@@ -113,6 +116,11 @@ void Settings::setDefaults()
 	#ifdef _RPI_
 		// we're defaulting to OMX Player for full screen video on the Pi
 		mBoolMap["ScreenSaverOmxPlayer"] = true;
+		// use OMX Player defaults
+		mStringMap["SubtitleFont"] = "/usr/share/fonts/truetype/freefont/FreeSans.ttf";
+		mStringMap["SubtitleItalicFont"] = "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf";
+		mIntMap["SubtitleSize"] = 55;
+		mStringMap["SubtitleAlignment"] = "left";
 	#else
 		mBoolMap["ScreenSaverOmxPlayer"] = false;
 	#endif
@@ -125,8 +133,11 @@ void Settings::setDefaults()
 	mStringMap["OMXAudioDev"] = "both";
 	mStringMap["CollectionSystemsAuto"] = "";
 	mStringMap["CollectionSystemsCustom"] = "";
+	mBoolMap["CollectionShowSystemInfo"] = true;
 	mBoolMap["SortAllSystems"] = false;
 	mBoolMap["UseCustomCollectionsSystem"] = true;
+
+	mBoolMap["LocalArt"] = false;
 
 	// Audio out device for volume control
 	#ifdef _RPI_
@@ -135,6 +146,7 @@ void Settings::setDefaults()
 		mStringMap["AudioDevice"] = "Master";
 	#endif
 
+	mStringMap["AudioCard"] = "default";
 	mStringMap["UIMode"] = "Full";
 	mStringMap["UIMode_passkey"] = "uuddlrlrba";
 	mBoolMap["ForceKiosk"] = false;
@@ -148,8 +160,6 @@ void Settings::setDefaults()
 	mIntMap["ScreenOffsetX"] = 0;
 	mIntMap["ScreenOffsetY"] = 0;
 	mIntMap["ScreenRotate"]  = 0;
-
-	mStringMap["ExePath"] = "";
 }
 
 template <typename K, typename V>
@@ -187,6 +197,9 @@ void Settings::saveFile()
 	}
 
 	doc.save_file(path.c_str());
+
+	Scripting::fireEvent("config-changed");
+	Scripting::fireEvent("settings-changed");
 }
 
 void Settings::loadFile()

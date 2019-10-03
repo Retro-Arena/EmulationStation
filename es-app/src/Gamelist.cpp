@@ -48,7 +48,12 @@ FileData* findOrCreateFile(SystemData* system, const std::string& path, FileType
 			}
 
 			FileData* file = new FileData(type, path, system->getSystemEnvData(), system);
-			treeNode->addChild(file);
+
+			// skipping arcade assets from gamelist
+			if(!file->isArcadeAsset())
+			{
+				treeNode->addChild(file);
+			}
 			return file;
 		}
 
@@ -124,16 +129,17 @@ void parseGamelist(SystemData* system)
 				LOG(LogError) << "Error finding/creating FileData for \"" << path << "\", skipping.";
 				continue;
 			}
+			else if(!file->isArcadeAsset())
+			{
+				std::string defaultName = file->metadata.get("name");
+				file->metadata = MetaDataList::createFromXML(GAME_METADATA, fileNode, relativeTo);
 
-			//load the metadata
-			std::string defaultName = file->metadata.get("name");
-			file->metadata = MetaDataList::createFromXML(GAME_METADATA, fileNode, relativeTo);
+				//make sure name gets set if one didn't exist
+				if(file->metadata.get("name").empty())
+					file->metadata.set("name", defaultName);
 
-			//make sure name gets set if one didn't exist
-			if(file->metadata.get("name").empty())
-				file->metadata.set("name", defaultName);
-
-			file->metadata.resetChangedFlag();
+				file->metadata.resetChangedFlag();
+			}
 		}
 	}
 }
@@ -211,11 +217,6 @@ void updateGamelist(SystemData* system)
 		{
 			const char* tag = ((*fit)->getType() == GAME) ? "game" : "folder";
 
-			// check if current file has metadata, if no, skip it as it wont be in the gamelist anyway.
-			if ((*fit)->metadata.isDefault()) {
-				continue;
-			}
-
 			// do not touch if it wasn't changed anyway
 			if (!(*fit)->metadata.wasChanged())
 				continue;
@@ -231,11 +232,9 @@ void updateGamelist(SystemData* system)
 					continue;
 				}
 
-				std::string nodePath = Utils::FileSystem::resolveRelativePath(pathNode.text().get(), system->getStartPath(), true);
-				std::string gamePath = (*fit)->getPath();
-				if(nodePath == gamePath || (Utils::FileSystem::exists(nodePath) &&
-				                            Utils::FileSystem::exists(gamePath) &&
-				                            Utils::FileSystem::isEquivalent(nodePath, gamePath)))
+				std::string nodePath = Utils::FileSystem::getCanonicalPath(Utils::FileSystem::resolveRelativePath(pathNode.text().get(), system->getStartPath(), true));
+				std::string gamePath = Utils::FileSystem::getCanonicalPath((*fit)->getPath());
+				if(nodePath == gamePath)
 				{
 					// found it
 					root.remove_child(fileNode);

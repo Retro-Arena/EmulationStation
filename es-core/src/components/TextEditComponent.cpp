@@ -2,7 +2,6 @@
 
 #include "resources/Font.h"
 #include "utils/StringUtil.h"
-#include "Renderer.h"
 
 #define TEXT_PADDING_HORIZ 10
 #define TEXT_PADDING_VERT 2
@@ -11,12 +10,12 @@
 #define CURSOR_REPEAT_SPEED 28 // lower is faster
 
 TextEditComponent::TextEditComponent(Window* window) : GuiComponent(window),
-	mBox(window, ":/textinput_ninepatch.png"), mFocused(false), 
-	mScrollOffset(0.0f, 0.0f), mCursor(0), mEditing(false), mFont(Font::get(FONT_SIZE_MEDIUM, FONT_PATH_LIGHT)), 
+	mBox(window, ":/textinput_ninepatch.png"), mFocused(false),
+	mScrollOffset(0.0f, 0.0f), mCursor(0), mEditing(false), mFont(Font::get(FONT_SIZE_MEDIUM, FONT_PATH_LIGHT)),
 	mCursorRepeatDir(0)
 {
 	addChild(&mBox);
-	
+
 	onFocusLost();
 
 	setSize(4096, mFont->getHeight() + TEXT_PADDING_VERT);
@@ -90,9 +89,9 @@ void TextEditComponent::stopEditing()
 
 bool TextEditComponent::input(InputConfig* config, Input input)
 {
-	bool const cursor_left = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("left", input)) ||
+	bool const cursor_left = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("left", input)) ||
 		(config->getDeviceId() == DEVICE_KEYBOARD && input.id == SDLK_LEFT);
-	bool const cursor_right = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("right", input)) ||
+	bool const cursor_right = (config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("right", input)) ||
 		(config->getDeviceId() == DEVICE_KEYBOARD && input.id == SDLK_RIGHT);
 
 	if(input.value == 0)
@@ -129,10 +128,10 @@ bool TextEditComponent::input(InputConfig* config, Input input)
 			return true;
 		}
 
-		if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("up", input))
+		if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("up", input))
 		{
 			// TODO
-		}else if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedTo("down", input))
+		}else if(config->getDeviceId() != DEVICE_KEYBOARD && config->isMappedLike("down", input))
 		{
 			// TODO
 		}else if(cursor_left || cursor_right)
@@ -218,7 +217,7 @@ void TextEditComponent::onCursorChanged()
 {
 	if(isMultiline())
 	{
-		Vector2f textSize = mFont->getWrappedTextCursorOffset(mText, getTextAreaSize().x(), mCursor); 
+		Vector2f textSize = mFont->getWrappedTextCursorOffset(mText, getTextAreaSize().x(), mCursor);
 
 		if(mScrollOffset.y() + getTextAreaSize().y() < textSize.y() + mFont->getHeight()) //need to scroll down?
 		{
@@ -255,8 +254,6 @@ void TextEditComponent::render(const Transform4x4f& parentTrans)
 	Renderer::pushClipRect(clipPos, clipDim);
 
 	trans.translate(Vector3f(-mScrollOffset.x(), -mScrollOffset.y(), 0));
-	trans.round();
-
 	Renderer::setMatrix(trans);
 
 	if(mTextCache)
@@ -280,7 +277,7 @@ void TextEditComponent::render(const Transform4x4f& parentTrans)
 		}
 
 		float cursorHeight = mFont->getHeight() * 0.8f;
-		Renderer::drawRect(cursorPos.x(), cursorPos.y() + (mFont->getHeight() - cursorHeight) / 2, 2.0f, cursorHeight, 0x000000FF);
+		Renderer::drawRect(cursorPos.x(), cursorPos.y() + (mFont->getHeight() - cursorHeight) / 2, 2.0f, cursorHeight, 0x000000FF, 0x000000FF);
 	}
 }
 

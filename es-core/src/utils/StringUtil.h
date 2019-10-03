@@ -26,6 +26,7 @@ namespace Utils
 		stringVector commaStringToVector(const std::string& _string);
 		std::string  vectorToCommaString(stringVector _vector);
 		std::string  format             (const char* _string, ...);
+		std::string  scramble           (const std::string& _input, const std::string& key);
 
 	} // String::
 

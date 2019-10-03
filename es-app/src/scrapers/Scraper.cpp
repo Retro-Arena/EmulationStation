@@ -1,7 +1,8 @@
 #include "scrapers/Scraper.h"
 
 #include "FileData.h"
-#include "GamesDBScraper.h"
+#include "GamesDBJSONScraper.h"
+#include "ScreenScraper.h"
 #include "Log.h"
 #include "Settings.h"
 #include "SystemData.h"
@@ -9,15 +10,25 @@
 #include <fstream>
 
 const std::map<std::string, generate_scraper_requests_func> scraper_request_funcs {
-	{ "TheGamesDB", &thegamesdb_generate_scraper_requests }
+	{ "TheGamesDB", &thegamesdb_generate_json_scraper_requests },
+	{ "ScreenScraper", &screenscraper_generate_scraper_requests }
 };
 
 std::unique_ptr<ScraperSearchHandle> startScraperSearch(const ScraperSearchParams& params)
 {
 	const std::string& name = Settings::getInstance()->getString("Scraper");
-
 	std::unique_ptr<ScraperSearchHandle> handle(new ScraperSearchHandle());
-	scraper_request_funcs.at(name)(params, handle->mRequestQueue, handle->mResults);
+
+	// Check if the Scraper in the settings still exists as a registered scraping source.
+	if (scraper_request_funcs.find(name) == scraper_request_funcs.end())
+	{
+		LOG(LogWarning) << "Configured scraper (" << name << ") unavailable, scraping aborted.";
+	}
+	else
+	{
+		scraper_request_funcs.at(name)(params, handle->mRequestQueue, handle->mResults);
+	}
+
 	return handle;
 }
 
@@ -30,6 +41,12 @@ std::vector<std::string> getScraperList()
 	}
 
 	return list;
+}
+
+bool isValidConfiguredScraper()
+{
+	const std::string& name = Settings::getInstance()->getString("Scraper");
+	return scraper_request_funcs.find(name) != scraper_request_funcs.end();
 }
 
 // ScraperSearchHandle
@@ -88,7 +105,7 @@ ScraperRequest::ScraperRequest(std::vector<ScraperSearchResult>& resultsWrite) :
 
 
 // ScraperHttpRequest
-ScraperHttpRequest::ScraperHttpRequest(std::vector<ScraperSearchResult>& resultsWrite, const std::string& url) 
+ScraperHttpRequest::ScraperHttpRequest(std::vector<ScraperSearchResult>& resultsWrite, const std::string& url)
 	: ScraperRequest(resultsWrite)
 {
 	setStatus(ASYNC_IN_PROGRESS);
@@ -126,7 +143,23 @@ MDResolveHandle::MDResolveHandle(const ScraperSearchResult& result, const Scrape
 {
 	if(!result.imageUrl.empty())
 	{
-		std::string imgPath = getSaveAsPath(search, "image", result.imageUrl);
+
+		std::string ext;
+
+		// If we have a file extension returned by the scraper, then use it.
+		// Otherwise, try to guess it by the name of the URL, which point to an image.
+		if (!result.imageType.empty())
+		{
+			ext = result.imageType;
+		}else{
+			size_t dot = result.imageUrl.find_last_of('.');
+
+			if (dot != std::string::npos)
+				ext = result.imageUrl.substr(dot, std::string::npos);
+		}
+
+		std::string imgPath = getSaveAsPath(search, "image", ext);
+
 		mFuncs.push_back(ResolvePair(downloadImageAsync(result.imageUrl, imgPath), [this, imgPath]
 		{
 			mResult.mdl.set("image", imgPath);
@@ -139,7 +172,7 @@ void MDResolveHandle::update()
 {
 	if(mStatus == ASYNC_DONE || mStatus == ASYNC_ERROR)
 		return;
-	
+
 	auto it = mFuncs.cbegin();
 	while(it != mFuncs.cend())
 	{
@@ -162,11 +195,11 @@ void MDResolveHandle::update()
 
 std::unique_ptr<ImageDownloadHandle> downloadImageAsync(const std::string& url, const std::string& saveAs)
 {
-	return std::unique_ptr<ImageDownloadHandle>(new ImageDownloadHandle(url, saveAs, 
+	return std::unique_ptr<ImageDownloadHandle>(new ImageDownloadHandle(url, saveAs,
 		Settings::getInstance()->getInt("ScraperResizeWidth"), Settings::getInstance()->getInt("ScraperResizeHeight")));
 }
 
-ImageDownloadHandle::ImageDownloadHandle(const std::string& url, const std::string& path, int maxWidth, int maxHeight) : 
+ImageDownloadHandle::ImageDownloadHandle(const std::string& url, const std::string& path, int maxWidth, int maxHeight) :
 	mSavePath(path), mMaxWidth(maxWidth), mMaxHeight(maxHeight), mReq(new HttpReq(url))
 {
 }
@@ -220,7 +253,7 @@ bool resizeImage(const std::string& path, int maxWidth, int maxHeight)
 
 	FREE_IMAGE_FORMAT format = FIF_UNKNOWN;
 	FIBITMAP* image = NULL;
-	
+
 	//detect the filetype
 	format = FreeImage_GetFileType(path.c_str(), 0);
 	if(format == FIF_UNKNOWN)
@@ -269,7 +302,7 @@ bool resizeImage(const std::string& path, int maxWidth, int maxHeight)
 	return saved;
 }
 
-std::string getSaveAsPath(const ScraperSearchParams& params, const std::string& suffix, const std::string& url)
+std::string getSaveAsPath(const ScraperSearchParams& params, const std::string& suffix, const std::string& extension)
 {
 	const std::string subdirectory = params.system->getName();
 	const std::string name = Utils::FileSystem::getStem(params.game->getPath()) + "-" + suffix;
@@ -284,11 +317,7 @@ std::string getSaveAsPath(const ScraperSearchParams& params, const std::string& 
 	if(!Utils::FileSystem::exists(path))
 		Utils::FileSystem::createDirectory(path);
 
-	size_t dot = url.find_last_of('.');
-	std::string ext;
-	if(dot != std::string::npos)
-		ext = url.substr(dot, std::string::npos);
 
-	path += name + ext;
+	path += name + extension;
 	return path;
 }

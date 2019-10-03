@@ -112,8 +112,13 @@ void SystemData::populateFolder(FileData* folder)
 		if(std::find(mEnvData->mSearchExtensions.cbegin(), mEnvData->mSearchExtensions.cend(), extension) != mEnvData->mSearchExtensions.cend())
 		{
 			FileData* newGame = new FileData(GAME, filePath, mEnvData, this);
-			folder->addChild(newGame);
-			isGame = true;
+
+			// preventing new arcade assets to be added
+			if(!newGame->isArcadeAsset())
+			{
+				folder->addChild(newGame);
+				isGame = true;
+			}
 		}
 
 		//add directories that also do not match an extension as folders
@@ -341,7 +346,7 @@ std::string SystemData::getConfigPath(bool forWrite)
 
 bool SystemData::isVisible()
 {
-   return (getDisplayedGameCount() > 0 || 
+   return (getDisplayedGameCount() > 0 ||
            (UIModeController::getInstance()->isUIModeFull() && mIsCollectionSystem) ||
            (mIsCollectionSystem && mName == "favorites"));
 }
@@ -489,7 +494,7 @@ void SystemData::loadTheme()
 		sysData.insert(std::pair<std::string, std::string>("system.name", getName()));
 		sysData.insert(std::pair<std::string, std::string>("system.theme", getThemeFolder()));
 		sysData.insert(std::pair<std::string, std::string>("system.fullName", getFullName()));
-		
+
 		mTheme->loadFile(sysData, path);
 	} catch(ThemeException& e)
 	{
