@@ -314,8 +314,8 @@ void Window::renderLoadingScreen(std::string text, float percent, unsigned char 
 		float x = Renderer::getScreenWidth() / 2 - w / 2;
 		float y = Renderer::getScreenHeight() - (Renderer::getScreenHeight() * 3 * baseHeight);
 
-		Renderer::drawRect(x, y, w, h, 0x25252500 | opacity, 0x25252500 | opacity);
-		Renderer::drawRect(x, y, (w*percent), h, 0x33FF0000 | opacity, 0x33FF0000 | opacity); // 0xFFFFFFFF
+		Renderer::drawRect(x, y, w, h, 0x000000FF | opacity, 0x000000FF | opacity);
+		Renderer::drawRect(x, y, (w*percent), h, 0x000000FF | opacity, 0x000000FF | opacity); // 0xFFFFFFFF
 	}
 
 	ImageComponent splash(this, true);
@@ -325,7 +325,7 @@ void Window::renderLoadingScreen(std::string text, float percent, unsigned char 
 	splash.render(trans);
 
 	auto& font = mDefaultFonts.at(1);
-	TextCache* cache = font->buildTextCache(text, 0, 0, 0x656565FF);
+	TextCache* cache = font->buildTextCache(text, 0, 0, 0x000000FF);
 
 	float x = Math::round((Renderer::getScreenWidth() - cache->metrics.size.x()) / 2.0f);
 	float y = Math::round(Renderer::getScreenHeight() * 0.78f);
